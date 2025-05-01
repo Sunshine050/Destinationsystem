@@ -1,16 +1,9 @@
-"use client"
+'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/dashboard/dashboard-layout';
 import { Button } from '@/components/ui/button';
-import { 
-  Plus,
-  Search,
-  Filter,
-  MapPin,
-  ChevronDown,
-  AlertTriangle
-} from 'lucide-react';
+import { Plus, Search, Filter, MapPin, ChevronDown, AlertTriangle } from 'lucide-react';
 import CaseCard from '@/components/dashboard/case-card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -31,150 +24,40 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import MapView from '@/components/dashboard/map-view';
+import { webSocketClient } from '@/lib/websocket';
 
-// Emergency cases sample data
-const emergencyCases = [
-  {
-    id: 'ER-2305-001',
-    title: 'Car Accident on Highway 7',
-    status: 'pending',
-    severity: 3,
-    reportedAt: '2025-03-15T09:23:11',
-    patientName: 'Somchai Jaidee',
-    contactNumber: '081-234-5678',
-    emergencyType: 'Car Accident',
-    location: {
-      address: 'Highway 7, Km. 15, Pathum Thani',
-      coordinates: {
-        lat: 13.9876,
-        lng: 100.5432,
-      },
-    },
-    description: 'Multiple vehicle collision. Patient appears to have chest injuries and possible fractures.',
-    symptoms: ['Chest Pain', 'Difficulty Breathing', 'Bleeding'],
-  },
-  {
-    id: 'ER-2305-002',
-    title: 'Unconscious Person at Central Plaza',
-    status: 'assigned',
-    severity: 2,
-    reportedAt: '2025-03-15T10:05:43',
-    patientName: 'Wanida Rakdee',
-    contactNumber: '089-876-5432',
-    emergencyType: 'Unconsciousness',
-    location: {
-      address: 'Central Plaza, 5th Floor, Food Court',
-      coordinates: {
-        lat: 13.8765,
-        lng: 100.4321,
-      },
-    },
-    assignedTo: 'Thonburi Hospital',
-    description: 'Patient suddenly collapsed while eating. No visible injuries.',
-    symptoms: ['Unconsciousness', 'Pallor'],
-  },
-  {
-    id: 'ER-2305-003',
-    title: 'Drowning at Blue Beach Resort',
-    status: 'in-progress',
-    severity: 4,
-    reportedAt: '2025-03-15T11:17:22',
-    patientName: 'Michael Johnson',
-    contactNumber: '062-345-6789',
-    emergencyType: 'Drowning',
-    location: {
-      address: 'Blue Beach Resort, Koh Samui',
-      coordinates: {
-        lat: 9.5678,
-        lng: 100.0123,
-      },
-    },
-    assignedTo: 'Samui International Hospital',
-    description: 'Tourist found unconscious in hotel swimming pool. CPR in progress by hotel staff.',
-    symptoms: ['Unconsciousness', 'Not Breathing', 'Cyanosis'],
-  },
-  {
-    id: 'ER-2305-004',
-    title: 'Elderly Fall at Bangkae Home',
-    status: 'completed',
-    severity: 2,
-    reportedAt: '2025-03-15T08:45:00',
-    patientName: 'Prasert Suksawat',
-    contactNumber: '081-987-6543',
-    emergencyType: 'Fall',
-    location: {
-      address: 'Bangkae Elderly Home, 123 Phetkasem Rd.',
-      coordinates: {
-        lat: 13.7123,
-        lng: 100.4567,
-      },
-    },
-    assignedTo: 'Siriraj Hospital',
-    description: 'Elderly male fell in bathroom. Complaining of hip pain and unable to stand.',
-    symptoms: ['Hip Pain', 'Limited Mobility', 'Bruising'],
-  },
-  {
-    id: 'ER-2305-005',
-    title: 'Stroke Symptoms at Office Building',
-    status: 'assigned',
-    severity: 3,
-    reportedAt: '2025-03-15T12:30:15',
-    patientName: 'Somying Jaidee',
-    contactNumber: '085-123-4567',
-    emergencyType: 'Stroke',
-    location: {
-      address: 'SCB Park Plaza, 12th Floor, Ratchadapisek Rd.',
-      coordinates: {
-        lat: 13.8123,
-        lng: 100.5678,
-      },
-    },
-    assignedTo: 'Thonburi Hospital',
-    description: 'Female patient with sudden facial drooping and slurred speech during meeting.',
-    symptoms: ['Facial Drooping', 'Slurred Speech', 'Arm Weakness'],
-  },
-  {
-    id: 'ER-2305-006',
-    title: 'Road Accident on Sukhumvit 24',
-    status: 'pending',
-    severity: 3,
-    reportedAt: '2025-03-15T14:45:30',
-    patientName: 'Sarah Thompson',
-    contactNumber: '095-789-1234',
-    emergencyType: 'Traffic Accident',
-    location: {
-      address: 'Sukhumvit 24, near BTS Phrom Phong',
-      coordinates: {
-        lat: 13.7234,
-        lng: 100.5678,
-      },
-    },
-    description: 'Motorcycle collision with car. Patient conscious but with leg injury and bleeding.',
-    symptoms: ['Leg Pain', 'Bleeding', 'Abrasions'],
-  },
-  {
-    id: 'ER-2305-007',
-    title: 'Heart Attack at Fitness Center',
-    status: 'pending',
-    severity: 4,
-    reportedAt: '2025-03-15T10:15:00',
-    patientName: 'Thanapat Srichai',
-    contactNumber: '081-456-7890',
-    emergencyType: 'Heart Attack',
-    location: {
-      address: 'FitForLife Gym, Sathorn Square Building',
-      coordinates: {
-        lat: 13.7234,
-        lng: 100.5288,
-      },
-    },
-    description: 'Middle-aged male collapsed during workout with chest pain and shortness of breath.',
-    symptoms: ['Chest Pain', 'Shortness of Breath', 'Sweating'],
-  },
-];
+interface EmergencyCase {
+  id: string;
+  title: string;
+  status: string;
+  severity: number;
+  reportedAt: string;
+  patientName: string;
+  contactNumber: string;
+  emergencyType: string;
+  location: {
+    address: string;
+    coordinates: {
+      lat: number;
+      lng: number;
+    };
+  };
+  description: string;
+  symptoms: string[];
+  assignedTo?: string;
+}
+
+interface Organization {
+  id: string;
+  name: string;
+  type: string;
+}
 
 export default function EmergencyCenterCases() {
-  const [cases, setCases] = useState(emergencyCases);
+  const [cases, setCases] = useState<EmergencyCase[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  const [selectedOrganization, setSelectedOrganization] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [filters, setFilters] = useState({
@@ -182,67 +65,260 @@ export default function EmergencyCenterCases() {
     severity: 'all',
     date: 'all',
   });
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Filter cases based on search query and filters
-  const filteredCases = cases.filter(c => {
-    // Search filter
-    const matchesSearch = 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        if (!token) throw new Error('No access token found. Please login again.');
+
+        const casesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos/all`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (!casesResponse.ok) {
+          if (casesResponse.status === 401) throw new Error('Unauthorized. Please login again.');
+          throw new Error(`Failed to fetch cases: ${casesResponse.statusText}`);
+        }
+        const casesData = await casesResponse.json();
+        setCases(casesData);
+
+        const hospitalsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dashboard/hospital-capacities`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (!hospitalsResponse.ok) {
+          if (hospitalsResponse.status === 401) throw new Error('Unauthorized. Please login again.');
+          throw new Error(`Failed to fetch hospitals: ${hospitalsResponse.statusText}`);
+        }
+        const hospitalsData = await hospitalsResponse.json();
+
+        const teamsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dashboard/team-locations`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (!teamsResponse.ok) {
+          if (teamsResponse.status === 401) throw new Error('Unauthorized. Please login again.');
+          throw new Error(`Failed to fetch rescue teams: ${teamsResponse.statusText}`);
+        }
+        const teamsData = await teamsResponse.json();
+
+        setOrganizations([...hospitalsData, ...teamsData]);
+      } catch (error: any) {
+        if (typeof window !== 'undefined') {
+          console.error('[EmergencyCenterCases] Error fetching data:', error);
+        }
+        toast({
+          title: 'Error',
+          description: error.message || 'Failed to load cases or organizations.',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      webSocketClient.connect(token);
+
+      webSocketClient.onEmergency((data) => {
+        setCases((prev) => [
+          {
+            id: data.id,
+            title: `Emergency ${data.id}`,
+            status: 'PENDING',
+            severity: data.grade === 'CRITICAL' ? 4 : data.grade === 'URGENT' ? 3 : 1,
+            reportedAt: new Date().toISOString(),
+            patientName: 'Unknown',
+            contactNumber: 'N/A',
+            emergencyType: data.type,
+            location: {
+              address: data.location?.address || 'Unknown',
+              coordinates: {
+                lat: data.coordinates?.latitude || 0,
+                lng: data.coordinates?.longitude || 0,
+              },
+            },
+            description: 'New emergency request',
+            symptoms: [],
+            assignedTo: data.assignedTo,
+          },
+          ...prev,
+        ]);
+        toast({
+          title: 'New Emergency',
+          description: `New ${data.type} emergency reported.`,
+        });
+      });
+
+      webSocketClient.onStatusUpdate((data) => {
+        setCases((prev) =>
+          prev.map((c) =>
+            c.id === data.emergencyId ? { ...c, status: data.status, assignedTo: data.assignedTo } : c
+          )
+        );
+        toast({
+          title: 'Status Update',
+          description: `Emergency ${data.emergencyId} status updated to ${data.status}.`,
+        });
+      });
+
+      webSocketClient.onDisconnect(() => {
+        toast({
+          title: 'WebSocket Disconnected',
+          description: 'Disconnected from real-time updates. Attempting to reconnect...',
+          variant: 'destructive',
+        });
+      });
+    }
+
+    return () => {
+      webSocketClient.disconnect();
+    };
+  }, [toast]);
+
+  const filteredCases = cases.filter((c) => {
+    const matchesSearch =
       c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.emergencyType.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // Status filter
+
     const matchesStatus = filters.status === 'all' || c.status === filters.status;
-    
-    // Severity filter
-    const matchesSeverity = filters.severity === 'all' || c.severity.toString() === filters.severity;
-    
-    // Date filter (simplified - in real app would use proper date filtering)
-    const matchesDate = filters.date === 'all';
-    
+
+    const matchesSeverity =
+      filters.severity === 'all' || c.severity.toString() === filters.severity;
+
+    const matchesDate = (() => {
+      if (filters.date === 'all') return true;
+      const reportedAt = new Date(c.reportedAt);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - 7);
+
+      if (filters.date === 'today') {
+        return reportedAt.toDateString() === today.toDateString();
+      }
+      if (filters.date === 'yesterday') {
+        return reportedAt.toDateString() === yesterday.toDateString();
+      }
+      if (filters.date === 'week') {
+        return reportedAt >= weekStart;
+      }
+      return true;
+    })();
+
     return matchesSearch && matchesStatus && matchesSeverity && matchesDate;
   });
 
-  const handleAssignCase = (caseId: string) => {
-    setCases(prev => 
-      prev.map(c => 
-        c.id === caseId 
-          ? { ...c, status: 'assigned', assignedTo: 'Thonburi Hospital' } 
-          : c
-      )
-    );
-    
-    toast({
-      title: "Case assigned",
-      description: `Case ${caseId} has been assigned to Thonburi Hospital.`,
-    });
+  const handleAssignCase = async (caseId: string) => {
+    if (!selectedOrganization) {
+      toast({
+        title: 'Error',
+        description: 'Please select an organization to assign the case to.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) throw new Error('No access token found. Please login again.');
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos/${caseId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          status: 'ASSIGNED',
+          assignedToId: selectedOrganization,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) throw new Error('Unauthorized. Please login again.');
+        throw new Error(`Failed to assign case: ${response.statusText}`);
+      }
+
+      const org = organizations.find((o) => o.id === selectedOrganization);
+      toast({
+        title: 'Case Assigned',
+        description: `Case ${caseId} has been assigned to ${org?.name}.`,
+      });
+
+      setSelectedCaseId(null);
+      setSelectedOrganization('');
+    } catch (error: any) {
+      if (typeof window !== 'undefined') {
+        console.error('[EmergencyCenterCases] Error assigning case:', error);
+      }
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to assign case.',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleCancelCase = (caseId: string) => {
-    setCases(prev => 
-      prev.map(c => 
-        c.id === caseId 
-          ? { ...c, status: 'cancelled' } 
-          : c
-      )
-    );
-    
-    toast({
-      title: "Case cancelled",
-      description: `Case ${caseId} has been cancelled.`,
-    });
+  const handleCancelCase = async (caseId: string) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) throw new Error('No access token found. Please login again.');
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos/${caseId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          status: 'CANCELLED',
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) throw new Error('Unauthorized. Please login again.');
+        throw new Error(`Failed to cancel case: ${response.statusText}`);
+      }
+
+      toast({
+        title: 'Case Cancelled',
+        description: `Case ${caseId} has been cancelled.`,
+      });
+    } catch (error: any) {
+      if (typeof window !== 'undefined') {
+        console.error('[EmergencyCenterCases] Error cancelling case:', error);
+      }
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to cancel case.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const getMapLocations = () => {
-    return filteredCases.map(c => ({
+    return filteredCases.map((c) => ({
       id: c.id,
       title: c.title,
       severity: c.severity as 1 | 2 | 3 | 4,
-      coordinates: c.location.coordinates
+      coordinates: c.location.coordinates,
     }));
   };
+
+  if (loading) return <div>Loading...</div>;
 
   return (
     <DashboardLayout role="emergency-center">
@@ -262,7 +338,6 @@ export default function EmergencyCenterCases() {
           </div>
         </div>
 
-        {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-grow">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
@@ -274,28 +349,28 @@ export default function EmergencyCenterCases() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          
+
           <div className="flex flex-wrap gap-2">
             <Select
               value={filters.status}
-              onValueChange={(value) => setFilters({...filters, status: value})}
+              onValueChange={(value) => setFilters({ ...filters, status: value })}
             >
               <SelectTrigger className="w-[130px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="assigned">Assigned</SelectItem>
-                <SelectItem value="in-progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="PENDING">Pending</SelectItem>
+                <SelectItem value="ASSIGNED">Assigned</SelectItem>
+                <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                <SelectItem value="COMPLETED">Completed</SelectItem>
+                <SelectItem value="CANCELLED">Cancelled</SelectItem>
               </SelectContent>
             </Select>
-            
+
             <Select
               value={filters.severity}
-              onValueChange={(value) => setFilters({...filters, severity: value})}
+              onValueChange={(value) => setFilters({ ...filters, severity: value })}
             >
               <SelectTrigger className="w-[130px]">
                 <SelectValue placeholder="Severity" />
@@ -308,7 +383,7 @@ export default function EmergencyCenterCases() {
                 <SelectItem value="4">Grade 4 (Critical)</SelectItem>
               </SelectContent>
             </Select>
-            
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2">
@@ -322,31 +397,31 @@ export default function EmergencyCenterCases() {
                 <DropdownMenuSeparator />
                 <DropdownMenuCheckboxItem
                   checked={filters.date === 'all'}
-                  onCheckedChange={() => setFilters({...filters, date: 'all'})}
+                  onCheckedChange={() => setFilters({ ...filters, date: 'all' })}
                 >
                   All Dates
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem
                   checked={filters.date === 'today'}
-                  onCheckedChange={() => setFilters({...filters, date: 'today'})}
+                  onCheckedChange={() => setFilters({ ...filters, date: 'today' })}
                 >
                   Today
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem
                   checked={filters.date === 'yesterday'}
-                  onCheckedChange={() => setFilters({...filters, date: 'yesterday'})}
+                  onCheckedChange={() => setFilters({ ...filters, date: 'yesterday' })}
                 >
                   Yesterday
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem
                   checked={filters.date === 'week'}
-                  onCheckedChange={() => setFilters({...filters, date: 'week'})}
+                  onCheckedChange={() => setFilters({ ...filters, date: 'week' })}
                 >
                   This Week
                 </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            
+
             <div className="flex border rounded-md">
               <Button
                 variant={viewMode === 'list' ? 'secondary' : 'ghost'}
@@ -369,7 +444,6 @@ export default function EmergencyCenterCases() {
           </div>
         </div>
 
-        {/* Stats Summary */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm">
             <div className="flex items-center justify-between">
@@ -383,7 +457,7 @@ export default function EmergencyCenterCases() {
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Pending</p>
               <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-500">
-                {filteredCases.filter(c => c.status === 'pending').length}
+                {filteredCases.filter((c) => c.status === 'PENDING').length}
               </Badge>
             </div>
           </div>
@@ -391,7 +465,7 @@ export default function EmergencyCenterCases() {
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Critical</p>
               <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500">
-                {filteredCases.filter(c => c.severity === 4).length}
+                {filteredCases.filter((c) => c.severity === 4).length}
               </Badge>
             </div>
           </div>
@@ -399,19 +473,57 @@ export default function EmergencyCenterCases() {
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Completed</p>
               <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500">
-                {filteredCases.filter(c => c.status === 'completed').length}
+                {filteredCases.filter((c) => c.status === 'COMPLETED').length}
               </Badge>
             </div>
           </div>
         </div>
 
-        {/* Cases List or Map View */}
+        {selectedCaseId && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg">
+              <h3 className="text-lg font-bold mb-4">Assign Case</h3>
+              <Select
+                value={selectedOrganization}
+                onValueChange={(value) => setSelectedOrganization(value)}
+              >
+                <SelectTrigger className="w-full mb-4">
+                  <SelectValue placeholder="Select organization" />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      {org.name} ({org.type})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex gap-2">
+                <Button onClick={() => handleAssignCase(selectedCaseId)}>
+                  Assign
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedCaseId(null);
+                    setSelectedOrganization('');
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {viewMode === 'list' ? (
           <div className="space-y-4">
             {filteredCases.length === 0 ? (
               <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
                 <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-slate-400" />
-                <p className="text-slate-500 dark:text-slate-400">No cases found matching your criteria</p>
+                <p className="text-slate-500 dark:text-slate-400">
+                  No cases found matching your criteria
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -421,7 +533,7 @@ export default function EmergencyCenterCases() {
                     {...emergencyCase}
                     severity={emergencyCase.severity as 1 | 2 | 3 | 4}
                     status={emergencyCase.status as any}
-                    onAssign={() => handleAssignCase(emergencyCase.id)}
+                    onAssign={() => setSelectedCaseId(emergencyCase.id)}
                     onCancel={() => handleCancelCase(emergencyCase.id)}
                     role="emergency-center"
                   />
@@ -431,10 +543,7 @@ export default function EmergencyCenterCases() {
           </div>
         ) : (
           <div className="space-y-4">
-            <MapView
-              locations={getMapLocations()}
-              height="500px"
-            />
+            <MapView locations={getMapLocations()} height="500px" />
             <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
               Showing {filteredCases.length} emergency cases on the map. Hover over markers for details.
             </p>
