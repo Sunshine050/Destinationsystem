@@ -53,6 +53,14 @@ interface Organization {
   type: string;
 }
 
+interface Notification {
+  id: string;
+  title: string;
+  description: string;
+  timestamp: string;
+  read: boolean;
+}
+
 export default function EmergencyCenterCases() {
   const [cases, setCases] = useState<EmergencyCase[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -66,6 +74,7 @@ export default function EmergencyCenterCases() {
     date: 'all',
   });
   const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -124,22 +133,25 @@ export default function EmergencyCenterCases() {
     };
 
     fetchData();
+  }, []); // ลบ dependency เพื่อให้ fetchData ทำงานครั้งเดียวเมื่อ mount
 
+  useEffect(() => {
     const token = localStorage.getItem('access_token');
     if (token) {
       webSocketClient.connect(token);
 
       webSocketClient.onEmergency((data) => {
+        console.log('[EmergencyCenterCases] New emergency:', data);
         setCases((prev) => [
           {
-            id: data.id,
-            title: `Emergency ${data.id}`,
+            id: data.id || `temp-${Date.now()}`,
+            title: `Emergency ${data.id || Date.now()}`,
             status: 'PENDING',
             severity: data.grade === 'CRITICAL' ? 4 : data.grade === 'URGENT' ? 3 : 1,
             reportedAt: new Date().toISOString(),
             patientName: 'Unknown',
             contactNumber: 'N/A',
-            emergencyType: data.type,
+            emergencyType: data.type || 'Unknown',
             location: {
               address: data.location?.address || 'Unknown',
               coordinates: {
@@ -155,11 +167,16 @@ export default function EmergencyCenterCases() {
         ]);
         toast({
           title: 'New Emergency',
-          description: `New ${data.type} emergency reported.`,
+          description: `New ${data.type || 'emergency'} reported.`,
         });
       });
 
       webSocketClient.onStatusUpdate((data) => {
+        console.log('[EmergencyCenterCases] Status update:', data);
+        if (!data.emergencyId) {
+          console.error('[EmergencyCenterCases] Missing emergencyId in status update:', data);
+          return;
+        }
         setCases((prev) =>
           prev.map((c) =>
             c.id === data.emergencyId ? { ...c, status: data.status, assignedTo: data.assignedTo } : c
@@ -168,6 +185,18 @@ export default function EmergencyCenterCases() {
         toast({
           title: 'Status Update',
           description: `Emergency ${data.emergencyId} status updated to ${data.status}.`,
+        });
+      });
+
+      webSocketClient.on('notification', (data: Notification) => {
+        console.log('[EmergencyCenterCases] Received notification:', data);
+        setNotifications((prev) => {
+          const updatedNotifications = [data, ...prev].slice(0, 10);
+          return updatedNotifications;
+        });
+        toast({
+          title: data.title || 'Notification',
+          description: data.description || 'No description available',
         });
       });
 
@@ -183,7 +212,7 @@ export default function EmergencyCenterCases() {
     return () => {
       webSocketClient.disconnect();
     };
-  }, [toast]);
+  }, []); // เรียก connect เพียงครั้งเดียวเมื่อ mount
 
   const filteredCases = cases.filter((c) => {
     const matchesSearch =
@@ -258,6 +287,12 @@ export default function EmergencyCenterCases() {
         description: `Case ${caseId} has been assigned to ${org?.name}.`,
       });
 
+      setCases((prev) =>
+        prev.map((c) =>
+          c.id === caseId ? { ...c, status: 'ASSIGNED', assignedTo: selectedOrganization } : c
+        )
+      );
+
       setSelectedCaseId(null);
       setSelectedOrganization('');
     } catch (error: any) {
@@ -297,6 +332,12 @@ export default function EmergencyCenterCases() {
         title: 'Case Cancelled',
         description: `Case ${caseId} has been cancelled.`,
       });
+
+      setCases((prev) =>
+        prev.map((c) =>
+          c.id === caseId ? { ...c, status: 'CANCELLED', assignedTo: undefined } : c
+        )
+      );
     } catch (error: any) {
       if (typeof window !== 'undefined') {
         console.error('[EmergencyCenterCases] Error cancelling case:', error);
