@@ -17,71 +17,109 @@ class WebSocketClient {
 
     console.log('Socket กำลังทำงานอยู่...');
 
-    this.socket = io(`${process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001'}/notifications`, {
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001';
+    this.socket = io(`${wsUrl}/notifications`, {
       auth: { token },
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'],
       reconnection: false,
     });
 
     this.socket.on('connect', () => {
       this.reconnectAttempts = 0;
-      if (typeof window !== 'undefined') {
-        console.log('[WebSocket] Connected to WebSocket server');
-      }
+      console.log('[WebSocket] Connected to WebSocket server');
     });
 
     this.socket.on('disconnect', () => {
-      if (typeof window !== 'undefined') {
-        console.log('[WebSocket] Disconnected from WebSocket server');
-      }
+      console.log('[WebSocket] Disconnected from WebSocket server');
       this.handleReconnect();
     });
 
     this.socket.on('connect_error', (error) => {
-      if (typeof window !== 'undefined') {
-        console.error('[WebSocket] Connection error:', error);
-      }
+      console.error('[WebSocket] Connection error:', error.message);
       this.handleReconnect();
+    });
+
+    this.socket.on('error', (error) => {
+      console.error('[WebSocket] Error:', error);
+      if (error === 'Invalid token') {
+        console.error('[WebSocket] Invalid token. Please login again.');
+        this.handleDisconnect();
+      }
     });
   }
 
-  private handleReconnect() {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
-      if (typeof window !== 'undefined') {
-        console.log(`[WebSocket] Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+  private async handleReconnect() {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      this.handleDisconnect();
+      return;
+    }
+
+    this.reconnectAttempts++;
+    console.log(`[WebSocket] Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+
+    setTimeout(async () => {
+      const token = localStorage.getItem('access_token');
+      const refreshToken = localStorage.getItem('refresh_token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+      if (!token) {
+        console.error('[WebSocket] No token available. Please login again.');
+        this.handleDisconnect();
+        return;
       }
-      setTimeout(() => {
-        const token = localStorage.getItem('access_token');
-        if (token) {
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-token`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          })
-            .then((res) => {
-              if (res.ok) {
-                this.connect(token);
-              } else {
-                if (typeof window !== 'undefined') {
-                  console.error('[WebSocket] Invalid token. Please login again.');
-                }
-              }
-            })
-            .catch((err) => {
-              if (typeof window !== 'undefined') {
-                console.error('[WebSocket] Error verifying token:', err);
-              }
+
+      try {
+        const res = await fetch(`${apiUrl}/auth/verify-token`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (res.ok) {
+          this.connect(token);
+        } else if (res.status === 401 && refreshToken) {
+          // Token หมดอายุ พยายาม refresh
+          try {
+            const refreshRes = await fetch(`${apiUrl}/auth/refresh`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ refreshToken }),
             });
+
+            const data = await refreshRes.json();
+            if (refreshRes.ok && data.access_token && data.refresh_token) {
+              localStorage.setItem('access_token', data.access_token);
+              localStorage.setItem('refresh_token', data.refresh_token);
+              this.connect(data.access_token);
+            } else {
+              console.error('[WebSocket] Failed to refresh token:', data);
+              this.handleDisconnect();
+            }
+          } catch (err) {
+            console.error('[WebSocket] Error refreshing token:', err);
+            this.handleDisconnect();
+          }
+        } else {
+          console.error('[WebSocket] Invalid token. Please login again.');
+          this.handleDisconnect();
         }
-      }, this.reconnectInterval);
-    } else {
-      if (typeof window !== 'undefined') {
-        console.error('[WebSocket] Max reconnect attempts reached. Please refresh the page.');
+      } catch (err) {
+        console.error('[WebSocket] Error verifying token:', err);
+        this.handleDisconnect();
       }
-      if (this.onDisconnectCallback) {
-        this.onDisconnectCallback();
-      }
+    }, this.reconnectInterval);
+  }
+
+  private handleDisconnect() {
+    console.error('[WebSocket] Max reconnect attempts reached. Please refresh the page.');
+    if (this.onDisconnectCallback) {
+      this.onDisconnectCallback();
+    }
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
     }
   }
 
@@ -100,9 +138,7 @@ class WebSocketClient {
   onEmergency(callback: (data: any) => void) {
     if (this.socket) {
       this.socket.on('emergency', (data) => {
-        if (typeof window !== 'undefined') {
-          console.log('[WebSocket] Received emergency event:', data);
-        }
+        console.log('[WebSocket] Received emergency event:', data);
         callback(data);
       });
     }
@@ -111,9 +147,7 @@ class WebSocketClient {
   onStatusUpdate(callback: (data: any) => void) {
     if (this.socket) {
       this.socket.on('status-update', (data) => {
-        if (typeof window !== 'undefined') {
-          console.log('[WebSocket] Received status-update event:', data);
-        }
+        console.log('[WebSocket] Received status-update event:', data);
         callback(data);
       });
     }
