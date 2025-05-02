@@ -1,471 +1,166 @@
-'use client';
+"use client"
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import DashboardLayout from '@/components/dashboard/dashboard-layout';
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
+import { 
   AlertTriangle,
   Clock,
-  Activity,
-  Hospital,
+  Check,
+  X,
+  ArrowRight,
   Search,
   Bell,
-  ArrowRight,
-  Plus,
+  Hospital,
+  Activity
 } from 'lucide-react';
 import CaseCard from '@/components/dashboard/case-card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { webSocketClient } from '@/lib/websocket';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from '@/components/ui/dialog';
 
-interface EmergencyCase {
-  id: string;
-  title: string;
-  status: string;
-  severity: number;
-  reportedAt: string;
-  patientName: string;
-  contactNumber: string;
-  emergencyType: string;
-  location: {
-    address: string;
-    coordinates: {
-      lat: number;
-      lng: number;
-    };
-  };
-  assignedTo?: string;
-  description: string;
-  symptoms: string[];
-}
+// Emergency cases sample data
+const emergencyCases = [
+  {
+    id: 'ER-2305-001',
+    title: 'Car Accident on Highway 7',
+    status: 'pending',
+    severity: 3,
+    reportedAt: '2025-03-15T09:23:11',
+    patientName: 'Somchai Jaidee',
+    contactNumber: '081-234-5678',
+    emergencyType: 'Car Accident',
+    location: {
+      address: 'Highway 7, Km. 15, Pathum Thani',
+      coordinates: {
+        lat: 13.9876,
+        lng: 100.5432,
+      },
+    },
+    description: 'Multiple vehicle collision. Patient appears to have chest injuries and possible fractures.',
+    symptoms: ['Chest Pain', 'Difficulty Breathing', 'Bleeding'],
+  },
+  {
+    id: 'ER-2305-002',
+    title: 'Unconscious Person at Central Plaza',
+    status: 'assigned',
+    severity: 2,
+    reportedAt: '2025-03-15T10:05:43',
+    patientName: 'Wanida Rakdee',
+    contactNumber: '089-876-5432',
+    emergencyType: 'Unconsciousness',
+    location: {
+      address: 'Central Plaza, 5th Floor, Food Court',
+      coordinates: {
+        lat: 13.8765,
+        lng: 100.4321,
+      },
+    },
+    assignedTo: 'Thonburi Hospital',
+    description: 'Patient suddenly collapsed while eating. No visible injuries.',
+    symptoms: ['Unconsciousness', 'Pallor'],
+  },
+  {
+    id: 'ER-2305-003',
+    title: 'Drowning at Blue Beach Resort',
+    status: 'in-progress',
+    severity: 4,
+    reportedAt: '2025-03-15T11:17:22',
+    patientName: 'Michael Johnson',
+    contactNumber: '062-345-6789',
+    emergencyType: 'Drowning',
+    location: {
+      address: 'Blue Beach Resort, Koh Samui',
+      coordinates: {
+        lat: 9.5678,
+        lng: 100.0123,
+      },
+    },
+    assignedTo: 'Samui International Hospital',
+    description: 'Tourist found unconscious in hotel swimming pool. CPR in progress by hotel staff.',
+    symptoms: ['Unconsciousness', 'Not Breathing', 'Cyanosis'],
+  },
+  {
+    id: 'ER-2305-004',
+    title: 'Elderly Fall at Bangkae Home',
+    status: 'completed',
+    severity: 2,
+    reportedAt: '2025-03-15T08:45:00',
+    patientName: 'Prasert Suksawat',
+    contactNumber: '081-987-6543',
+    emergencyType: 'Fall',
+    location: {
+      address: 'Bangkae Elderly Home, 123 Phetkasem Rd.',
+      coordinates: {
+        lat: 13.7123,
+        lng: 100.4567,
+      },
+    },
+    assignedTo: 'Siriraj Hospital',
+    description: 'Elderly male fell in bathroom. Complaining of hip pain and unable to stand.',
+    symptoms: ['Hip Pain', 'Limited Mobility', 'Bruising'],
+  },
+];
 
-interface DashboardStats {
-  pending: number;
-  assigned: number;
-  inProgress: number;
-  completed: number;
-  critical: number;
-  total: number;
-  connectedHospitals: number;
-}
-
-interface Notification {
-  id: string;
-  title: string;
-  description: string;
-  timestamp: string;
-  read: boolean;
+// Define counts for dashboard stats
+const stats = {
+  pending: emergencyCases.filter(c => c.status === 'pending').length,
+  assigned: emergencyCases.filter(c => c.status === 'assigned').length,
+  inProgress: emergencyCases.filter(c => c.status === 'in-progress').length,
+  completed: emergencyCases.filter(c => c.status === 'completed').length,
+  critical: emergencyCases.filter(c => c.severity === 4).length,
+  total: emergencyCases.length,
 }
 
 export default function EmergencyCenterDashboard() {
-  const [cases, setCases] = useState<EmergencyCase[]>([]);
-  const [stats, setStats] = useState<DashboardStats>({
-    pending: 0,
-    assigned: 0,
-    inProgress: 0,
-    completed: 0,
-    critical: 0,
-    total: 0,
-    connectedHospitals: 0,
-  });
+  const [cases, setCases] = useState(emergencyCases);
   const [searchQuery, setSearchQuery] = useState('');
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [newCaseOpen, setNewCaseOpen] = useState(false);
   const { toast } = useToast();
-  const router = useRouter();
 
-  const [newCaseData, setNewCaseData] = useState({
-    title: '',
-    patientName: '',
-    contactNumber: '',
-    emergencyType: 'Accident',
-    locationAddress: '',
-    description: '',
-    severity: 1,
-  });
-
-  // Fetch data
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-          toast({
-            title: 'Error',
-            description: 'No access token found. Redirecting to login...',
-            variant: 'destructive',
-          });
-          router.push('/login');
-          return;
-        }
-
-        const statsResponse = await fetch('http://localhost:3001/dashboard/stats', {
-          headers: { Authorization: `Bearer ${token}` },
-          credentials: 'include',
-        });
-        if (!statsResponse.ok) {
-          if (statsResponse.status === 401) {
-            toast({
-              title: 'Error',
-              description: 'Unauthorized. Redirecting to login...',
-              variant: 'destructive',
-            });
-            router.push('/login');
-            return;
-          }
-          throw new Error('Failed to fetch stats');
-        }
-        const statsData = await statsResponse.json();
-
-        const casesResponse = await fetch('http://localhost:3001/dashboard/active-emergencies', {
-          headers: { Authorization: `Bearer ${token}` },
-          credentials: 'include',
-        });
-        if (!casesResponse.ok) {
-          if (casesResponse.status === 401) {
-            toast({
-              title: 'Error',
-              description: 'Unauthorized. Redirecting to login...',
-              variant: 'destructive',
-            });
-            router.push('/login');
-            return;
-          }
-          throw new Error('Failed to fetch cases');
-        }
-        const casesData = await casesResponse.json();
-
-        setCases(casesData);
-        setStats({
-          pending: casesData.filter((c: EmergencyCase) => c.status === 'PENDING').length,
-          assigned: casesData.filter((c: EmergencyCase) => c.status === 'ASSIGNED').length,
-          inProgress: casesData.filter((c: EmergencyCase) => c.status === 'IN_PROGRESS').length,
-          completed: casesData.filter((c: EmergencyCase) => c.status === 'COMPLETED').length,
-          critical: statsData.criticalCases,
-          total: statsData.totalEmergencies,
-          connectedHospitals: statsData.connectedHospitals,
-        });
-      } catch (error) {
-        console.error('[EmergencyCenterDashboard] Error fetching dashboard data:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load dashboard data.',
-          variant: 'destructive',
-        });
-      }
-    };
-
-    fetchData();
-  }, [toast, router]);
-
-  // WebSocket connection
-  useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-
-    webSocketClient.connect(token);
-
-    const handleEmergency = (data: any) => {
-      setCases((prev) => [
-        {
-          id: data.id,
-          title: `Emergency ${data.id}`,
-          status: 'PENDING',
-          severity: data.grade === 'CRITICAL' ? 4 : data.grade === 'URGENT' ? 3 : 1,
-          reportedAt: new Date().toISOString(),
-          patientName: 'Unknown',
-          contactNumber: 'N/A',
-          emergencyType: data.type,
-          location: {
-            address: data.location?.address || 'Unknown',
-            coordinates: { lat: data.coordinates?.latitude || 0, lng: data.coordinates?.longitude || 0 },
-          },
-          description: 'New emergency request',
-          symptoms: [],
-          assignedTo: data.assignedTo,
-        },
-        ...prev,
-      ]);
-      setStats((prev) => ({
-        ...prev,
-        pending: prev.pending + 1,
-        total: prev.total + 1,
-        critical: data.grade === 'CRITICAL' ? prev.critical + 1 : prev.critical,
-      }));
-      toast({ title: 'New Emergency', description: `New ${data.type} emergency reported.` });
-    };
-
-    const handleStatusUpdate = (data: any) => {
-      setCases((prev) =>
-        prev.map((c) =>
-          c.id === data.emergencyId ? { ...c, status: data.status, assignedTo: data.assignedTo } : c
-        )
-      );
-      // อัปเดต stats หลังจาก cases ถูกอัปเดต
-      setStats((prev) => {
-        const updatedCases = cases.map((c) =>
-          c.id === data.emergencyId ? { ...c, status: data.status, assignedTo: data.assignedTo } : c
-        );
-        return {
-          ...prev,
-          pending: updatedCases.filter((c) => c.status === 'PENDING').length,
-          assigned: updatedCases.filter((c) => c.status === 'ASSIGNED').length,
-          inProgress: updatedCases.filter((c) => c.status === 'IN_PROGRESS').length,
-          completed: updatedCases.filter((c) => c.status === 'COMPLETED').length,
-        };
-      });
-      toast({
-        title: 'Status Update',
-        description: `Emergency ${data.emergencyId} status updated to ${data.status}.`,
-      });
-    };
-
-    const handleNotification = (data: Notification) => {
-      setNotifications((prev) => {
-        const updatedNotifications = [data, ...prev].slice(0, 10);
-        return updatedNotifications;
-      });
-      toast({ title: data.title, description: data.description || 'No description available' });
-    };
-
-    const handleDisconnect = () => {
-      toast({
-        title: 'WebSocket Disconnected',
-        description: 'Disconnected from real-time updates. Attempting to reconnect...',
-        variant: 'destructive',
-      });
-    };
-
-    // Attach event listeners
-    webSocketClient.onEmergency(handleEmergency);
-    webSocketClient.onStatusUpdate(handleStatusUpdate);
-    webSocketClient.on('notification', handleNotification);
-    webSocketClient.onDisconnect(handleDisconnect);
-
-    // Cleanup on unmount
-    return () => {
-      webSocketClient.offEmergency(handleEmergency);
-      webSocketClient.offStatusUpdate(handleStatusUpdate);
-      webSocketClient.off('notification', handleNotification);
-      webSocketClient.offDisconnect(handleDisconnect);
-      webSocketClient.disconnect();
-    };
-  }, [toast, router, cases]); // เพิ่ม cases เป็น dependency เพื่อให้ stats อัปเดตเมื่อ cases เปลี่ยน
-
-  const filteredCases = cases.filter(
-    (c) =>
-      c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.emergencyType.toLowerCase().includes(searchQuery.toLowerCase())
+  // Filter cases based on search query
+  const filteredCases = cases.filter(c => 
+    c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.emergencyType.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleAssignCase = async (caseId: string) => {
-    try {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        toast({
-          title: 'Error',
-          description: 'No access token found. Redirecting to login...',
-          variant: 'destructive',
-        });
-        router.push('/login');
-        return;
-      }
-
-      const response = await fetch('http://localhost:3001/dashboard/assign-case', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        credentials: 'include',
-        body: JSON.stringify({ caseId, assignedToId: 'thonburi-hospital-id' }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          toast({
-            title: 'Error',
-            description: 'Unauthorized. Redirecting to login...',
-            variant: 'destructive',
-          });
-          router.push('/login');
-          return;
-        }
-        throw new Error('Failed to assign case');
-      }
-
-      toast({
-        title: 'Case assigned',
-        description: `Case ${caseId} has been assigned to Thonburi Hospital.`,
-      });
-      setCases((prev) =>
-        prev.map((c) =>
-          c.id === caseId ? { ...c, status: 'ASSIGNED', assignedTo: 'thonburi-hospital-id' } : c
-        )
-      );
-      setStats((prev) => ({
-        ...prev,
-        pending: prev.pending - 1,
-        assigned: prev.assigned + 1,
-      }));
-    } catch (error) {
-      console.error('[EmergencyCenterDashboard] Error assigning case:', error);
-      toast({ title: 'Error', description: 'Failed to assign case.', variant: 'destructive' });
-    }
+  const handleAssignCase = (caseId: string) => {
+    setCases(prev => 
+      prev.map(c => 
+        c.id === caseId 
+          ? { ...c, status: 'assigned', assignedTo: 'Thonburi Hospital' } 
+          : c
+      )
+    );
+    
+    toast({
+      title: "Case assigned",
+      description: `Case ${caseId} has been assigned to Thonburi Hospital.`,
+    });
   };
 
-  const handleCancelCase = async (caseId: string) => {
-    try {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        toast({
-          title: 'Error',
-          description: 'No access token found. Redirecting to login...',
-          variant: 'destructive',
-        });
-        router.push('/login');
-        return;
-      }
-
-      const response = await fetch('http://localhost:3001/dashboard/cancel-case', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        credentials: 'include',
-        body: JSON.stringify({ caseId }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          toast({
-            title: 'Error',
-            description: 'Unauthorized. Redirecting to login...',
-            variant: 'destructive',
-          });
-          router.push('/login');
-          return;
-        }
-        throw new Error('Failed to cancel case');
-      }
-
-      const cancelledCase = cases.find((c) => c.id === caseId);
-      if (!cancelledCase) {
-        throw new Error('Case not found');
-      }
-
-      setCases((prev) =>
-        prev.map((c) =>
-          c.id === caseId ? { ...c, status: 'CANCELLED', assignedTo: undefined } : c
-        )
-      );
-
-      setStats((prev) => {
-        const newStats = { ...prev };
-        if (cancelledCase.status === 'PENDING') {
-          newStats.pending -= 1;
-        } else if (cancelledCase.status === 'ASSIGNED') {
-          newStats.assigned -= 1;
-        } else if (cancelledCase.status === 'IN_PROGRESS') {
-          newStats.inProgress -= 1;
-        }
-        newStats.completed += 1;
-        newStats.total -= 1;
-        if (cancelledCase.severity === 4) {
-          newStats.critical -= 1;
-        }
-        return newStats;
-      });
-
-      toast({ title: 'Case cancelled', description: `Case ${caseId} has been cancelled.` });
-    } catch (error) {
-      console.error('[EmergencyCenterDashboard] Error cancelling case:', error);
-      toast({ title: 'Error', description: 'Failed to cancel case.', variant: 'destructive' });
-    }
-  };
-
-  const handleCreateNewCase = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        toast({
-          title: 'Error',
-          description: 'No access token found. Redirecting to login...',
-          variant: 'destructive',
-        });
-        router.push('/login');
-        return;
-      }
-
-      const response = await fetch('http://localhost:3001/dashboard/create-case', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        credentials: 'include',
-        body: JSON.stringify({
-          title: newCaseData.title,
-          patientName: newCaseData.patientName,
-          contactNumber: newCaseData.contactNumber,
-          emergencyType: newCaseData.emergencyType,
-          locationAddress: newCaseData.locationAddress,
-          description: newCaseData.description,
-          severity: newCaseData.severity,
-        }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          toast({
-            title: 'Error',
-            description: 'Unauthorized. Redirecting to login...',
-            variant: 'destructive',
-          });
-          router.push('/login');
-          return;
-        }
-        throw new Error('Failed to create case');
-      }
-      const newCase = await response.json();
-
-      setCases((prev) => [newCase, ...prev]);
-      setStats((prev) => ({
-        ...prev,
-        pending: prev.pending + 1,
-        total: prev.total + 1,
-        critical: newCase.severity === 4 ? prev.critical + 1 : prev.critical,
-      }));
-      setNewCaseOpen(false);
-      setNewCaseData({
-        title: '',
-        patientName: '',
-        contactNumber: '',
-        emergencyType: 'Accident',
-        locationAddress: '',
-        description: '',
-        severity: 1,
-      });
-      toast({ title: 'Success', description: 'New case created successfully.' });
-    } catch (error) {
-      console.error('[EmergencyCenterDashboard] Error creating case:', error);
-      toast({ title: 'Error', description: 'Failed to create case.', variant: 'destructive' });
-    }
+  const handleCancelCase = (caseId: string) => {
+    setCases(prev => 
+      prev.map(c => 
+        c.id === caseId 
+          ? { ...c, status: 'cancelled' } 
+          : c
+      )
+    );
+    
+    toast({
+      title: "Case cancelled",
+      description: `Case ${caseId} has been cancelled.`,
+    });
   };
 
   return (
@@ -474,86 +169,23 @@ export default function EmergencyCenterDashboard() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold">Emergency Response Center Dashboard</h1>
-            <p className="text-slate-500 dark:text-slate-400">Manage and monitor emergency cases</p>
+            <p className="text-slate-500 dark:text-slate-400">
+              Manage and monitor emergency cases
+            </p>
           </div>
           <div className="flex gap-2">
-            <Dialog open={newCaseOpen} onOpenChange={setNewCaseOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  New Case <Plus className="ml-2 h-4 w-4" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Create New Emergency Case</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleCreateNewCase} className="space-y-4">
-                  <Input
-                    placeholder="Case Title"
-                    value={newCaseData.title}
-                    onChange={(e) => setNewCaseData({ ...newCaseData, title: e.target.value })}
-                    required
-                  />
-                  <Input
-                    placeholder="Patient Name"
-                    value={newCaseData.patientName}
-                    onChange={(e) => setNewCaseData({ ...newCaseData, patientName: e.target.value })}
-                    required
-                  />
-                  <Input
-                    placeholder="Contact Number"
-                    value={newCaseData.contactNumber}
-                    onChange={(e) => setNewCaseData({ ...newCaseData, contactNumber: e.target.value })}
-                  />
-                  <select
-                    value={newCaseData.emergencyType}
-                    onChange={(e) => setNewCaseData({ ...newCaseData, emergencyType: e.target.value })}
-                    className="w-full p-2 border rounded"
-                    required
-                  >
-                    <option value="Accident">Accident</option>
-                    <option value="Medical">Medical</option>
-                    <option value="Fire">Fire</option>
-                  </select>
-                  <Input
-                    placeholder="Location Address"
-                    value={newCaseData.locationAddress}
-                    onChange={(e) => setNewCaseData({ ...newCaseData, locationAddress: e.target.value })}
-                    required
-                  />
-                  <Input
-                    placeholder="Description"
-                    value={newCaseData.description}
-                    onChange={(e) => setNewCaseData({ ...newCaseData, description: e.target.value })}
-                  />
-                  <select
-                    value={newCaseData.severity}
-                    onChange={(e) => setNewCaseData({ ...newCaseData, severity: parseInt(e.target.value) })}
-                    className="w-full p-2 border rounded"
-                    required
-                  >
-                    <option value="1">Low</option>
-                    <option value="2">Medium</option>
-                    <option value="3">Urgent</option>
-                    <option value="4">Critical</option>
-                  </select>
-                  <DialogFooter>
-                    <Button type="submit">Create Case</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-            <Button
-              variant="outline"
-              className="flex items-center gap-2"
-              onClick={() => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))}
-            >
+            <Button variant="outline" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
-              Notifications ({notifications.filter((n) => !n.read).length})
+              Notifications
+            </Button>
+            <Button>
+              New Case
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         </div>
 
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="pb-2">
@@ -570,40 +202,27 @@ export default function EmergencyCenterDashboard() {
               </div>
             </CardContent>
           </Card>
+          
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                Assigned Cases
+                Active Cases
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold">{stats.assigned}</div>
+                <div className="text-2xl font-bold">{stats.assigned + stats.inProgress}</div>
                 <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-full">
-                  <ArrowRight className="h-5 w-5 text-blue-600 dark:text-blue-500" />
+                  <Activity className="h-5 w-5 text-blue-600 dark:text-blue-500" />
                 </div>
               </div>
             </CardContent>
           </Card>
+          
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                In Progress
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold">{stats.inProgress}</div>
-                <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-full">
-                  <Activity className="h-5 w-5 text-green-600 dark:text-green-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                Critical Cases
+                Critical Severity
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -615,8 +234,25 @@ export default function EmergencyCenterDashboard() {
               </div>
             </CardContent>
           </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                Connected Hospitals
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold">12</div>
+                <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-full">
+                  <Hospital className="h-5 w-5 text-green-600 dark:text-green-500" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
+        {/* Emergency Cases List */}
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <h2 className="text-xl font-bold">Emergency Cases</h2>
@@ -648,7 +284,7 @@ export default function EmergencyCenterDashboard() {
                 Completed <Badge className="ml-1">{stats.completed}</Badge>
               </TabsTrigger>
             </TabsList>
-
+            
             {['all', 'pending', 'assigned', 'in-progress', 'completed'].map((tabValue) => (
               <TabsContent key={tabValue} value={tabValue} className="space-y-4">
                 {filteredCases.length === 0 ? (
@@ -658,7 +294,7 @@ export default function EmergencyCenterDashboard() {
                 ) : (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {filteredCases
-                      .filter((c) => tabValue === 'all' || c.status === tabValue.toUpperCase())
+                      .filter(c => tabValue === 'all' || c.status === tabValue)
                       .map((emergencyCase) => (
                         <CaseCard
                           key={emergencyCase.id}
@@ -676,38 +312,6 @@ export default function EmergencyCenterDashboard() {
             ))}
           </Tabs>
         </div>
-
-        <Dialog
-          open={notifications.length > 0 && notifications.some((n) => !n.read)}
-          onOpenChange={() => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Notifications</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {notifications.map((notif) => (
-                <div
-                  key={notif.id}
-                  className={`p-2 rounded ${notif.read ? 'bg-gray-100' : 'bg-blue-100'}`}
-                >
-                  <p className="font-semibold">{notif.title}</p>
-                  <p className="text-sm text-gray-600">{notif.description}</p>
-                  <p className="text-xs text-gray-500">
-                    {new Date(notif.timestamp).toLocaleTimeString()}
-                  </p>
-                </div>
-              ))}
-            </div>
-            <DialogFooter>
-              <Button
-                onClick={() => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))}
-              >
-                Clear All
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </DashboardLayout>
   );
