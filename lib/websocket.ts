@@ -6,8 +6,9 @@ class WebSocketClient {
   private maxReconnectAttempts = 5;
   private reconnectInterval = 5000;
   private eventCallbacks: { [event: string]: ((data: any) => void)[] } = {};
-  private isConnecting = false; // ป้องกันการ connect ซ้ำ
-  private isInitialized = false; // ป้องกันการ subscribe ซ้ำ
+  private isConnecting = false;
+  private isInitialized = false;
+  private intervals: NodeJS.Timeout[] = []; // เก็บ interval เพื่อ cleanup
 
   connect(token: string) {
     if (this.isConnecting || (this.socket && this.socket.connected)) {
@@ -32,10 +33,17 @@ class WebSocketClient {
       this.reconnectAttempts = 0;
       this.isConnecting = false;
       if (!this.isInitialized) {
-        this.initializeEvents(); // เรียก subscribe event เพียงครั้งเดียว
+        this.initializeEvents();
         this.isInitialized = true;
       }
       console.log('[WebSocket] Connected to WebSocket server');
+
+      // เพิ่ม event listeners ที่ค้างอยู่ใน eventCallbacks
+      Object.keys(this.eventCallbacks).forEach((event) => {
+        this.eventCallbacks[event].forEach((callback) => {
+          this.socket?.on(event, callback);
+        });
+      });
     });
 
     this.socket.on('disconnect', () => {
@@ -57,30 +65,22 @@ class WebSocketClient {
         this.handleDisconnect();
       }
     });
-
-    this.socket.onAny(() => {
-      // ไม่ log event data เพื่อลดการแสดงผล
-    });
   }
 
   private initializeEvents() {
-    // ฟังก์ชันนี้จะถูกเรียกเพียงครั้งเดียวเมื่อ connect ครั้งแรก
+    // ตรวจสอบว่า socket มีอยู่และเชื่อมต่อแล้ว
+    if (!this.socket || !this.socket.connected) return;
+
     this.on('emergency', (data) => {
-      if (this.eventCallbacks['emergency']) {
-        this.eventCallbacks['emergency'].forEach((callback) => callback(data));
-      }
+      this.eventCallbacks['emergency']?.forEach((cb) => cb(data));
     });
 
     this.on('status-update', (data) => {
-      if (this.eventCallbacks['status-update']) {
-        this.eventCallbacks['status-update'].forEach((callback) => callback(data));
-      }
+      this.eventCallbacks['status-update']?.forEach((cb) => cb(data));
     });
 
     this.on('notification', (data) => {
-      if (this.eventCallbacks['notification']) {
-        this.eventCallbacks['notification'].forEach((callback) => callback(data));
-      }
+      this.eventCallbacks['notification']?.forEach((cb) => cb(data));
     });
   }
 
@@ -90,35 +90,35 @@ class WebSocketClient {
       return;
     }
 
+    if (this.isConnecting) return; // ป้องกันการ reconnect ซ้ำ
+
     this.reconnectAttempts++;
     console.log(`[WebSocket] Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
 
-    setTimeout(async () => {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        console.error('[WebSocket] No token available. Please login again.');
-        this.handleDisconnect();
-        return;
-      }
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      console.error('[WebSocket] No token available. Please login again.');
+      this.handleDisconnect();
+      return;
+    }
 
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/auth/verify-token`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/auth/verify-token`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-        if (res.ok) {
-          this.connect(token);
-        } else {
-          console.error('[WebSocket] Invalid token. Please login again.');
-          this.handleDisconnect();
-        }
-      } catch (err) {
-        console.error('[WebSocket] Error verifying token:', err);
+      if (res.ok) {
+        this.connect(token);
+      } else {
+        console.error('[WebSocket] Invalid token. Please login again.');
         this.handleDisconnect();
       }
-    }, this.reconnectInterval);
+    } catch (err) {
+      console.error('[WebSocket] Error verifying token:', err);
+      this.handleDisconnect();
+    }
   }
 
   private handleDisconnect() {
@@ -126,17 +126,18 @@ class WebSocketClient {
     if (this.onDisconnectCallback) {
       this.onDisconnectCallback();
     }
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
-    }
-    this.isConnecting = false;
-    this.isInitialized = false; // รีเซ็ตเพื่อให้สามารถ initialize ใหม่ได้เมื่อ reconnect
+    this.disconnect();
   }
 
   private onDisconnectCallback: (() => void) | null = null;
   onDisconnect(callback: () => void) {
     this.onDisconnectCallback = callback;
+  }
+
+  offDisconnect(callback: () => void) {
+    if (this.onDisconnectCallback === callback) {
+      this.onDisconnectCallback = null;
+    }
   }
 
   disconnect() {
@@ -146,24 +147,47 @@ class WebSocketClient {
     }
     this.isConnecting = false;
     this.isInitialized = false;
+    this.reconnectAttempts = 0;
+
+    // ล้าง intervals ทั้งหมด
+    this.intervals.forEach((interval) => clearInterval(interval));
+    this.intervals = [];
+
+    // ล้าง eventCallbacks
+    this.eventCallbacks = {};
   }
 
   on(event: string, callback: (data: any) => void) {
     if (!this.eventCallbacks[event]) {
       this.eventCallbacks[event] = [];
     }
-    this.eventCallbacks[event].push(callback);
 
-    if (this.socket && this.socket.connected) {
-      this.socket.on(event, callback);
-    } else {
-      const checkConnection = () => {
-        if (this.socket && this.socket.connected) {
-          this.socket.on(event, callback);
-          clearInterval(interval);
-        }
-      };
-      const interval = setInterval(checkConnection, 500);
+    const alreadyAdded = this.eventCallbacks[event].includes(callback);
+    if (!alreadyAdded) {
+      this.eventCallbacks[event].push(callback);
+
+      if (this.socket && this.socket.connected) {
+        this.socket.on(event, callback);
+      } else {
+        const checkConnection = () => {
+          if (this.socket && this.socket.connected) {
+            this.socket.on(event, callback);
+            clearInterval(interval);
+            this.intervals = this.intervals.filter((i) => i !== interval);
+          }
+        };
+        const interval = setInterval(checkConnection, 500);
+        this.intervals.push(interval);
+      }
+    }
+  }
+
+  off(event: string, callback: (data: any) => void) {
+    if (this.eventCallbacks[event]) {
+      this.eventCallbacks[event] = this.eventCallbacks[event].filter((cb) => cb !== callback);
+      if (this.socket && this.socket.connected) {
+        this.socket.off(event, callback); // ลบ event listener ออกจาก socket
+      }
     }
   }
 
@@ -171,8 +195,16 @@ class WebSocketClient {
     this.on('emergency', callback);
   }
 
+  offEmergency(callback: (data: any) => void) {
+    this.off('emergency', callback);
+  }
+
   onStatusUpdate(callback: (data: any) => void) {
     this.on('status-update', callback);
+  }
+
+  offStatusUpdate(callback: (data: any) => void) {
+    this.off('status-update', callback);
   }
 }
 
