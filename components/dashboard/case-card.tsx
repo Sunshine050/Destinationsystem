@@ -1,18 +1,18 @@
-"use client"
+"use client";
 
-import { useState } from 'react';
-import { 
-  AlertTriangle, 
-  Clock, 
-  MapPin, 
-  Phone, 
-  User, 
+import { useState } from "react";
+import {
+  AlertTriangle,
+  Clock,
+  MapPin,
+  Phone,
+  User,
   Calendar,
   ChevronsRight,
   ChevronDown,
-  ChevronUp
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
+  ChevronUp,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -20,24 +20,24 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
-} from '@/components/ui/dialog';
-import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 export interface CaseCardProps {
   id: string;
   title: string;
-  status: 'pending' | 'assigned' | 'in-progress' | 'completed' | 'cancelled';
+  status: "pending" | "assigned" | "in-progress" | "completed" | "cancelled" | "PENDING" | "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   severity: 1 | 2 | 3 | 4;
   reportedAt: string;
   patientName: string;
@@ -52,12 +52,12 @@ export interface CaseCardProps {
   };
   assignedTo?: string;
   description?: string;
-  symptoms?: string[];
+  symptoms?: string[] | null; // รองรับ null
   onAssign?: () => void;
   onTransfer?: () => void;
   onComplete?: () => void;
   onCancel?: () => void;
-  role: 'emergency-center' | 'hospital' | 'rescue';
+  role: "emergency-center" | "hospital" | "rescue";
 }
 
 export default function CaseCard({
@@ -72,7 +72,7 @@ export default function CaseCard({
   location,
   assignedTo,
   description,
-  symptoms = [],
+  symptoms = [], // ค่าเริ่มต้นเป็นอาร์เรย์ว่าง
   onAssign,
   onTransfer,
   onComplete,
@@ -81,69 +81,82 @@ export default function CaseCard({
 }: CaseCardProps) {
   const [expanded, setExpanded] = useState(false);
 
+  // แปลง status ให้เป็นตัวพิมพ์เล็กเพื่อให้สอดคล้องกับการตรวจสอบ
+  const normalizedStatus = status.toLowerCase() as "pending" | "assigned" | "in-progress" | "completed" | "cancelled";
+
+  // ฟังก์ชันสำหรับจัดการสีและข้อความตามสถานะและความรุนแรง
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending':
-        return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-500';
-      case 'assigned':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-500';
-      case 'in-progress':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-500';
-      case 'completed':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500';
-      case 'cancelled':
-        return 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400';
+      case "pending":
+        return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-500";
+      case "assigned":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-500";
+      case "in-progress":
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-500";
+      case "completed":
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500";
+      case "cancelled":
+        return "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400";
       default:
-        return 'bg-slate-100 text-slate-800';
+        return "bg-slate-100 text-slate-800";
     }
   };
 
   const getSeverityColor = (severity: number) => {
     switch (severity) {
       case 1:
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500';
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500";
       case 2:
-        return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-500';
+        return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-500";
       case 3:
-        return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-500';
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-500";
       case 4:
-        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500';
+        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500";
       default:
-        return 'bg-slate-100 text-slate-800';
+        return "bg-slate-100 text-slate-800";
     }
   };
 
   const getSeverityLabel = (severity: number) => {
     switch (severity) {
       case 1:
-        return 'Mild';
+        return "Mild";
       case 2:
-        return 'Moderate';
+        return "Moderate";
       case 3:
-        return 'Severe';
+        return "Severe";
       case 4:
-        return 'Critical';
+        return "Critical";
       default:
-        return 'Unknown';
+        return "Unknown";
     }
   };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'pending':
-        return 'Pending';
-      case 'assigned':
-        return 'Assigned';
-      case 'in-progress':
-        return 'In Progress';
-      case 'completed':
-        return 'Completed';
-      case 'cancelled':
-        return 'Cancelled';
+      case "pending":
+        return "Pending";
+      case "assigned":
+        return "Assigned";
+      case "in-progress":
+        return "In Progress";
+      case "completed":
+        return "Completed";
+      case "cancelled":
+        return "Cancelled";
       default:
-        return 'Unknown';
+        return "Unknown";
     }
   };
+
+  // ตรวจสอบว่า symptoms เป็นอาร์เรย์หรือไม่ ถ้าไม่ให้เป็นอาร์เรย์ว่าง
+  const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
+
+  // ตรวจสอบวันที่ให้แน่ใจว่าแปลงได้
+  const reportedDate = new Date(reportedAt);
+  const formattedDate = !isNaN(reportedDate.getTime())
+    ? reportedDate.toLocaleString()
+    : "Unknown date";
 
   return (
     <Card className="overflow-hidden transition-all duration-200">
@@ -151,7 +164,9 @@ export default function CaseCard({
         <div className="flex justify-between items-start">
           <div>
             <CardTitle className="flex items-center gap-2 mb-1">
-              <AlertTriangle className={cn("h-4 w-4", severity === 4 && "text-red-500")} />
+              <AlertTriangle
+                className={cn("h-4 w-4", severity === 4 && "text-red-500")}
+              />
               {title}
             </CardTitle>
             <CardDescription>Case ID: {id}</CardDescription>
@@ -160,8 +175,8 @@ export default function CaseCard({
             <Badge className={getSeverityColor(severity)}>
               {getSeverityLabel(severity)}
             </Badge>
-            <Badge className={getStatusColor(status)}>
-              {getStatusLabel(status)}
+            <Badge className={getStatusColor(normalizedStatus)}>
+              {getStatusLabel(normalizedStatus)}
             </Badge>
           </div>
         </div>
@@ -170,7 +185,7 @@ export default function CaseCard({
         <div className="space-y-2 mb-3">
           <div className="flex items-center text-sm text-slate-500 dark:text-slate-400">
             <Calendar className="mr-2 h-4 w-4" />
-            <span>Reported on {new Date(reportedAt).toLocaleString()}</span>
+            <span>Reported on {formattedDate}</span>
           </div>
           <div className="flex items-center text-sm text-slate-500 dark:text-slate-400">
             <User className="mr-2 h-4 w-4" />
@@ -185,23 +200,26 @@ export default function CaseCard({
             <span>{location.address}</span>
           </div>
         </div>
-        
+
         {expanded && (
           <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-2 mb-3">
             <div className="text-sm">
-              <span className="font-medium">Emergency Type:</span> {emergencyType}
+              <span className="font-medium">Emergency Type:</span>{" "}
+              {emergencyType}
             </div>
             {description && (
               <div className="text-sm">
                 <span className="font-medium">Description:</span> {description}
               </div>
             )}
-            {symptoms.length > 0 && (
+            {safeSymptoms.length > 0 && (
               <div className="text-sm">
                 <span className="font-medium">Symptoms:</span>
                 <div className="flex flex-wrap gap-1 mt-1">
-                  {symptoms.map((symptom, index) => (
-                    <Badge key={index} variant="outline">{symptom}</Badge>
+                  {safeSymptoms.map((symptom, index) => (
+                    <Badge key={index} variant="outline">
+                      {symptom}
+                    </Badge>
                   ))}
                 </div>
               </div>
@@ -233,7 +251,7 @@ export default function CaseCard({
             </>
           )}
         </Button>
-        
+
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="outline" size="sm" className="ml-auto">
@@ -244,24 +262,24 @@ export default function CaseCard({
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <AlertTriangle className={cn("h-5 w-5", severity === 4 && "text-red-500")} />
+                <AlertTriangle
+                  className={cn("h-5 w-5", severity === 4 && "text-red-500")}
+                />
                 {title}
               </DialogTitle>
-              <DialogDescription>
-                Case ID: {id}
-              </DialogDescription>
+              <DialogDescription>Case ID: {id}</DialogDescription>
             </DialogHeader>
-            
+
             <div className="space-y-4 max-h-[60vh] overflow-y-auto py-2">
               <div className="flex gap-2">
                 <Badge className={getSeverityColor(severity)}>
                   {getSeverityLabel(severity)}
                 </Badge>
-                <Badge className={getStatusColor(status)}>
-                  {getStatusLabel(status)}
+                <Badge className={getStatusColor(normalizedStatus)}>
+                  {getStatusLabel(normalizedStatus)}
                 </Badge>
               </div>
-              
+
               <div className="space-y-2">
                 <p className="text-sm font-medium">Patient Information</p>
                 <div className="grid grid-cols-2 gap-2 text-sm">
@@ -275,32 +293,39 @@ export default function CaseCard({
                   </div>
                 </div>
               </div>
-              
+
               <Separator />
-              
+
               <div className="space-y-2">
                 <p className="text-sm font-medium">Incident Details</p>
                 <div className="space-y-2 text-sm">
                   <div className="flex items-start">
                     <AlertTriangle className="mr-2 h-4 w-4 text-slate-500 mt-0.5" />
-                    <span><strong>Emergency Type:</strong> {emergencyType}</span>
+                    <span>
+                      <strong>Emergency Type:</strong> {emergencyType}
+                    </span>
                   </div>
                   <div className="flex items-start">
                     <Clock className="mr-2 h-4 w-4 text-slate-500 mt-0.5" />
-                    <span><strong>Reported:</strong> {new Date(reportedAt).toLocaleString()}</span>
+                    <span>
+                      <strong>Reported:</strong> {formattedDate}
+                    </span>
                   </div>
                   <div className="flex items-start">
                     <MapPin className="mr-2 h-4 w-4 text-slate-500 mt-0.5" />
                     <span>
-                      <strong>Location:</strong><br />
-                      {location.address}<br />
-                      Coordinates: {location.coordinates.lat}, {location.coordinates.lng}
+                      <strong>Location:</strong>
+                      <br />
+                      {location.address}
+                      <br />
+                      Coordinates: {location.coordinates.lat},{" "}
+                      {location.coordinates.lng}
                     </span>
                   </div>
                 </div>
               </div>
-              
-              {(description || symptoms.length > 0) && (
+
+              {(description || safeSymptoms.length > 0) && (
                 <>
                   <Separator />
                   <div className="space-y-2">
@@ -311,12 +336,14 @@ export default function CaseCard({
                         <p className="mt-1">{description}</p>
                       </div>
                     )}
-                    {symptoms.length > 0 && (
+                    {safeSymptoms.length > 0 && (
                       <div className="text-sm">
                         <strong>Symptoms:</strong>
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {symptoms.map((symptom, index) => (
-                            <Badge key={index} variant="outline">{symptom}</Badge>
+                          {safeSymptoms.map((symptom, index) => (
+                            <Badge key={index} variant="outline">
+                              {symptom}
+                            </Badge>
                           ))}
                         </div>
                       </div>
@@ -324,7 +351,7 @@ export default function CaseCard({
                   </div>
                 </>
               )}
-              
+
               {assignedTo && (
                 <>
                   <Separator />
@@ -337,19 +364,24 @@ export default function CaseCard({
                 </>
               )}
             </div>
-            
+
             <DialogFooter className="flex justify-between sm:justify-between">
-              <Button variant="outline" onClick={onCancel}>
-                {status === 'completed' ? 'Close' : 'Cancel Case'}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (onCancel) onCancel();
+                }}
+              >
+                {normalizedStatus === "completed" ? "Close" : "Cancel Case"}
               </Button>
               <div className="space-x-2">
-                {role === 'emergency-center' && status === 'pending' && (
+                {role === "emergency-center" && normalizedStatus === "pending" && onAssign && (
                   <Button onClick={onAssign}>Assign to Hospital</Button>
                 )}
-                {role === 'hospital' && status === 'assigned' && (
+                {role === "hospital" && normalizedStatus === "assigned" && onTransfer && (
                   <Button onClick={onTransfer}>Assign to Rescue Team</Button>
                 )}
-                {role === 'rescue' && status === 'in-progress' && (
+                {role === "rescue" && normalizedStatus === "in-progress" && onComplete && (
                   <Button onClick={onComplete}>Complete Mission</Button>
                 )}
               </div>
