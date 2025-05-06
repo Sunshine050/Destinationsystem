@@ -13,23 +13,52 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertTriangle,
   Clock,
-  Bell,
   Hospital,
   Activity,
   Search,
-  ArrowRight,
 } from "lucide-react";
 import CaseCard from "@/components/dashboard/case-card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { webSocketClient } from "@/lib/websocket";
+import NotificationPanel from "@/components/dashboard/NotificationPanel";
+
+// Interface สำหรับโครงสร้างข้อมูลจาก API
+interface EmergencyRequestFromApi {
+  id: string;
+  description: string;
+  status: string;
+  grade: string;
+  createdAt: string;
+  patient: {
+    firstName: string;
+    lastName: string;
+    phone?: string;
+  };
+  type: string;
+  emergencyType?: string;
+  medicalInfo?: {
+    grade?: string;
+    symptoms?: string | string[];
+    emergencyType?: string;
+  };
+  location?: string;
+  latitude?: number;
+  longitude?: number;
+  responses?: Array<{
+    organization?: {
+      name?: string;
+    };
+  }>;
+}
 
 interface EmergencyCase {
   id: string;
-  title: string;
-  status: "PENDING" | "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
-  severity: 1 | 2 | 3 | 4;
+  description: string;
+  descriptionFull: string;
+  status: "pending" | "assigned" | "in-progress" | "completed" | "cancelled";
+  grade: "CRITICAL" | "URGENT" | "NON_URGENT";
   reportedAt: string;
   patientName: string;
   contactNumber: string;
@@ -42,7 +71,6 @@ interface EmergencyCase {
     };
   };
   assignedTo?: string;
-  description: string;
   symptoms: string[];
 }
 
@@ -53,34 +81,47 @@ interface DashboardStats {
   cancelledEmergencies: number;
   criticalCases: number;
   connectedHospitals: number;
+  averageResponseTime: number;
+  availableHospitalBeds: number;
+}
+
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  isRead: boolean;
+  createdAt: string;
+  metadata?: any;
 }
 
 export default function EmergencyCenterDashboard() {
   const [cases, setCases] = useState<EmergencyCase[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const { toast } = useToast();
 
-  // คำนวณ activeEmergencies จาก cases
-  const computedActiveEmergencies = cases.filter((c) => c.status === "PENDING").length;
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
-  const fetchStats = async () => {
+  const fetchStats = async (token: string) => {
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/dashboard/stats`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
       if (!response.ok) throw new Error("Failed to fetch stats");
       const data = await response.json();
-      // อัปเดต stats โดยคำนวณ activeEmergencies จาก cases
-      setStats({
-        ...data,
-        activeEmergencies: computedActiveEmergencies,
-      });
+      setStats(data);
     } catch (error) {
       console.error("Error fetching stats:", error);
       toast({
@@ -91,21 +132,20 @@ export default function EmergencyCenterDashboard() {
     }
   };
 
-  const fetchActiveEmergencies = async () => {
+  const fetchActiveEmergencies = async (token: string) => {
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/dashboard/active-emergencies`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
       if (!response.ok) throw new Error("Failed to fetch emergencies");
       const data = await response.json();
-      console.log("API Response:", data); // Debug API response
-
-      const formattedCases: EmergencyCase[] = data.map((item: any) => {
+      console.log("Raw API Data:", data);
+      const formattedCases: EmergencyCase[] = data.map((item: EmergencyRequestFromApi) => {
         const symptomsData = item.medicalInfo?.symptoms;
         const symptoms = Array.isArray(symptomsData)
           ? symptomsData
@@ -113,24 +153,27 @@ export default function EmergencyCenterDashboard() {
           ? [symptomsData.toString()]
           : [];
 
-        const severity = Number(item.medicalInfo?.severity) || (item.grade === "URGENT" ? 4 : 1);
+        const validGrades = ["CRITICAL", "URGENT", "NON_URGENT"] as const;
+        const gradeFromApi = (item.medicalInfo?.grade || item.grade)?.toUpperCase();
+        const grade = validGrades.includes(gradeFromApi as any)
+          ? gradeFromApi
+          : null;
 
-        // กำหนดสถานะที่เข้มงวดโดยใช้รายการที่กำหนดไว้
-        const validStatuses = ["PENDING", "ASSIGNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as const;
-        const statusFromApi = item.status?.toUpperCase() || "PENDING";
-        const status = validStatuses.includes(statusFromApi as any)
-          ? statusFromApi
-          : "PENDING"; // Fallback เป็น PENDING ถ้าไม่รู้จัก
+        if (!grade) {
+          console.warn(`Missing or invalid grade for case ${item.id}, skipping...`);
+          return null;
+        }
 
         return {
           id: item.id,
-          title: item.description.slice(0, 50) + "...",
-          status: status,
-          severity: severity,
-          reportedAt: item.createdAt || new Date().toISOString(),
-          patientName: `${item.patient?.firstName || ""} ${item.patient?.lastName || ""}`.trim() || "Unknown",
-          contactNumber: item.patient?.phone || "",
-          emergencyType: item.type || item.medicalInfo?.emergencyType || "Unknown",
+          description: (item.description || "No description available").slice(0, 50) + "...",
+          descriptionFull: item.description || "No description available",
+          status: item.status.toLowerCase() as "pending" | "assigned" | "in-progress" | "completed" | "cancelled",
+          grade: grade as "CRITICAL" | "URGENT" | "NON_URGENT",
+          reportedAt: item.createdAt,
+          patientName: `${item.patient.firstName} ${item.patient.lastName}`.trim() || "Unknown",
+          contactNumber: item.patient.phone || "",
+          emergencyType: item.emergencyType || item.type || "Unknown",
           location: {
             address: item.location || "Unknown",
             coordinates: {
@@ -139,10 +182,9 @@ export default function EmergencyCenterDashboard() {
             },
           },
           assignedTo: item.responses?.[0]?.organization?.name,
-          description: item.description || "No description available",
           symptoms,
         };
-      });
+      }).filter((c: EmergencyCase | null): c is EmergencyCase => c !== null);
       setCases(formattedCases);
     } catch (error) {
       console.error("Error fetching emergencies:", error);
@@ -154,64 +196,83 @@ export default function EmergencyCenterDashboard() {
     }
   };
 
-  const handleAssignCase = async (caseId: string) => {
+  const fetchNotifications = async (token: string) => {
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/sos/assign`,
+        `${process.env.NEXT_PUBLIC_API_URL}/notifications`,
         {
-          method: "POST",
           headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+            Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            caseId,
-            assignedToId: "thonburi-hospital-id",
-          }),
         }
       );
-      if (!response.ok) throw new Error("Failed to assign case");
-      toast({
-        title: "มอบหมายเคสสำเร็จ",
-        description: `เคส ${caseId} ถูกมอบหมายให้ Thonburi Hospital`,
-      });
-      await fetchActiveEmergencies();
-      await fetchStats(); // อัปเดต stats หลังจาก assign
+      if (!response.ok) throw new Error("Failed to fetch notifications");
+      const data = await response.json();
+      setNotifications(data);
+      setHasUnreadNotifications(data.some((n: Notification) => !n.isRead));
     } catch (error) {
-      console.error("Error assigning case:", error);
+      console.error("Error fetching notifications:", error);
       toast({
         title: "ข้อผิดพลาด",
-        description: "ไม่สามารถมอบหมายเคสได้ กรุณาลองใหม่",
+        description: "ไม่สามารถดึงข้อมูลการแจ้งเตือนได้ กรุณาลองใหม่",
         variant: "destructive",
       });
     }
   };
 
-  const handleCancelCase = async (caseId: string) => {
+  const markNotificationAsRead = async (id: string) => {
     try {
+      const token = localStorage.getItem("access_token");
+      if (!token) throw new Error("No token available");
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/sos/cancel`,
+        `${process.env.NEXT_PUBLIC_API_URL}/notifications/${id}/read`,
         {
-          method: "POST",
+          method: "PUT",
           headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+            Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ caseId }),
         }
       );
-      if (!response.ok) throw new Error("Failed to cancel case");
-      toast({
-        title: "ยกเลิกเคสสำเร็จ",
-        description: `เคส ${caseId} ถูกยกเลิก`,
-      });
-      await fetchActiveEmergencies();
-      await fetchStats(); // อัปเดต stats หลังจาก cancel
+      if (!response.ok) throw new Error("Failed to mark notification as read");
+      setNotifications((prev) =>
+        prev.map((notif) =>
+          notif.id === id ? { ...notif, isRead: true } : notif
+        )
+      );
+      setHasUnreadNotifications(notifications.some((n) => !n.isRead && n.id !== id));
     } catch (error) {
-      console.error("Error cancelling case:", error);
+      console.error("Error marking notification as read:", error);
       toast({
         title: "ข้อผิดพลาด",
-        description: "ไม่สามารถยกเลิกเคสได้ กรุณาลองใหม่",
+        description: "ไม่สามารถทำเครื่องหมายว่าอ่านแล้วได้ กรุณาลองใหม่",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const markAllNotificationsAsRead = async () => {
+    try {
+      const token = localStorage.getItem("access_token");
+      if (!token) throw new Error("No token available");
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/notifications/read-all`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (!response.ok) throw new Error("Failed to mark all notifications as read");
+      setNotifications((prev) =>
+        prev.map((notif) => ({ ...notif, isRead: true }))
+      );
+      setHasUnreadNotifications(false);
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "ไม่สามารถทำเครื่องหมายว่าอ่านทั้งหมดแล้วได้ กรุณาลองใหม่",
         variant: "destructive",
       });
     }
@@ -222,64 +283,128 @@ export default function EmergencyCenterDashboard() {
     if (token) {
       webSocketClient.connect(token);
 
-      webSocketClient.onStatusUpdate((data) => {
+      const statusUpdateHandler = (data: any) => {
         console.log("Status update received:", data);
-        fetchActiveEmergencies();
-        fetchStats(); // อัปเดต stats เมื่อสถานะเปลี่ยน
+        setCases((prevCases) =>
+          prevCases.map((c) =>
+            c.id === data.emergencyId
+              ? { ...c, status: data.status.toLowerCase(), assignedTo: data.assignedTo || c.assignedTo }
+              : c
+          )
+        );
         toast({
           title: "อัปเดตสถานะ",
-          description: `เคส ${data.caseId} อัปเดตเป็น ${data.status}`,
+          description: `เคส ${data.emergencyId} อัปเดตเป็น ${data.status}`,
         });
-      });
+      };
 
-      webSocketClient.on("notification", (data) => {
+      const notificationHandler = (data: any) => {
         console.log("Notification received:", data);
+        setNotifications((prev) => [data, ...prev]);
+        setHasUnreadNotifications(true);
         toast({
           title: data.title,
           description: data.body,
         });
-      });
+      };
 
-      webSocketClient.onEmergency((data) => {
+      const emergencyHandler = (data: any) => {
         console.log("New emergency case:", data);
-        fetchActiveEmergencies();
-        fetchStats(); // อัปเดต stats เมื่อมีเคสใหม่
+        const newCase: EmergencyCase = {
+          id: data.id,
+          description: (data.description || "No description available").slice(0, 50) + "...",
+          descriptionFull: data.description || "No description available",
+          status: "pending",
+          grade: data.grade.toUpperCase() as "CRITICAL" | "URGENT" | "NON_URGENT",
+          reportedAt: new Date().toISOString(),
+          patientName: "Unknown",
+          contactNumber: "",
+          emergencyType: data.type || "Unknown",
+          location: {
+            address: data.location || "Unknown",
+            coordinates: {
+              lat: data.coordinates?.lat || 0,
+              lng: data.coordinates?.lng || 0,
+            },
+          },
+          assignedTo: data.assignedTo,
+          symptoms: [],
+        };
+        setCases((prev) => [newCase, ...prev]);
         toast({
           title: "เคสฉุกเฉินใหม่",
           description: `เคส ${data.id} ถูกสร้าง`,
         });
+      };
+
+      const hospitalCreatedHandler = (data: any) => {
+        console.log("New hospital created:", data);
+        setStats((prev) =>
+          prev
+            ? { ...prev, connectedHospitals: prev.connectedHospitals + 1 }
+            : prev
+        );
+        toast({
+          title: "โรงพยาบาลใหม่",
+          description: `โรงพยาบาล ${data.name} ถูกสร้าง`,
+        });
+      };
+
+      const statsUpdatedHandler = (data: any) => {
+        console.log("Stats updated:", data);
+        setStats(data);
+      };
+
+      webSocketClient.onStatusUpdate(statusUpdateHandler);
+      webSocketClient.on("notification", notificationHandler);
+      webSocketClient.onEmergency(emergencyHandler);
+      webSocketClient.on("hospitalCreated", hospitalCreatedHandler);
+      webSocketClient.onStatusUpdate(statsUpdatedHandler);
+
+      webSocketClient.onDisconnect(() => {
+        toast({
+          title: "การเชื่อมต่อขาด",
+          description: "WebSocket ถูกตัดการเชื่อมต่อ กรุณารีเฟรชหน้า",
+          variant: "destructive",
+        });
       });
+
+      const checkConnection = setInterval(() => {
+        if (webSocketClient && !webSocketClient['socket']?.connected) {
+          webSocketClient.connect(token);
+        }
+      }, 5000);
+
+      // โหลดข้อมูลเริ่มต้น
+      fetchStats(token);
+      fetchActiveEmergencies(token);
+      fetchNotifications(token);
+
+      return () => {
+        clearInterval(checkConnection);
+        webSocketClient.offStatusUpdate(statusUpdateHandler);
+        webSocketClient.off("notification", notificationHandler);
+        webSocketClient.offEmergency(emergencyHandler);
+        webSocketClient.off("hospitalCreated", hospitalCreatedHandler);
+        webSocketClient.offStatusUpdate(statsUpdatedHandler);
+        webSocketClient.disconnect();
+      };
     }
-
-    fetchStats();
-    fetchActiveEmergencies();
-
-    return () => {
-      webSocketClient.disconnect();
-    };
   }, []);
-
-  // อัปเดต stats.activeEmergencies เมื่อ cases เปลี่ยนแปลง
-  useEffect(() => {
-    if (stats) {
-      setStats({
-        ...stats,
-        activeEmergencies: computedActiveEmergencies,
-      });
-    }
-  }, [cases]);
 
   const filteredCases = cases.filter(
     (c) =>
       c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.emergencyType.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const inProgressCases = cases.filter((c) => c.status === "in-progress").length;
+
   return (
     <DashboardLayout role="emergency-center">
-      <div className="space-y-6">
+      <div className="relative space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold">แดชบอร์ดศูนย์ฉุกเฉิน</h1>
@@ -288,14 +413,33 @@ export default function EmergencyCenterDashboard() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="flex items-center gap-2">
-              <Bell className="h-4 w-4" />
-              การแจ้งเตือน
-            </Button>
-            <Button>
-              สร้างเคสใหม่
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            {isMounted && (
+              <Button
+                variant="outline"
+                className="relative flex items-center gap-2 p-2 bg-yellow-200 hover:bg-yellow-300 text-gray-800 rounded-full shadow-md transition-all duration-200"
+                onClick={() => setIsNotificationPanelOpen(true)}
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                  />
+                </svg>
+                {hasUnreadNotifications && (
+                  <span className="absolute top-0 right-0 inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-red-500 rounded-full">
+                    !
+                  </span>
+                )}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -327,7 +471,7 @@ export default function EmergencyCenterDashboard() {
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div className="text-2xl font-bold">
-                    {cases.filter((c) => c.status === "IN_PROGRESS").length}
+                    {inProgressCases}
                   </div>
                   <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-full">
                     <Activity className="h-5 w-5 text-blue-600 dark:text-blue-500" />
@@ -388,31 +532,31 @@ export default function EmergencyCenterDashboard() {
           <Tabs defaultValue="all">
             <TabsList>
               <TabsTrigger value="all">ทุกเคส</TabsTrigger>
-              <TabsTrigger value="PENDING">
+              <TabsTrigger value="pending">
                 รอการดำเนินการ{" "}
                 <Badge className="ml-1">
-                  {cases.filter((c) => c.status === "PENDING").length}
+                  {stats?.activeEmergencies || 0}
                 </Badge>
               </TabsTrigger>
-              <TabsTrigger value="ASSIGNED">
+              <TabsTrigger value="assigned">
                 มอบหมายแล้ว{" "}
                 <Badge className="ml-1">
-                  {cases.filter((c) => c.status === "ASSIGNED").length}
+                  {cases.filter((c) => c.status === "assigned").length}
                 </Badge>
               </TabsTrigger>
-              <TabsTrigger value="IN_PROGRESS">
+              <TabsTrigger value="in-progress">
                 กำลังดำเนินการ{" "}
                 <Badge className="ml-1">
-                  {cases.filter((c) => c.status === "IN_PROGRESS").length}
+                  {cases.filter((c) => c.status === "in-progress").length}
                 </Badge>
               </TabsTrigger>
-              <TabsTrigger value="COMPLETED">
+              <TabsTrigger value="completed">
                 เสร็จสิ้น{" "}
                 <Badge className="ml-1">{stats?.completedEmergencies || 0}</Badge>
               </TabsTrigger>
             </TabsList>
 
-            {["all", "PENDING", "ASSIGNED", "IN_PROGRESS", "COMPLETED"].map(
+            {["all", "pending", "assigned", "in-progress", "completed"].map(
               (tabValue) => (
                 <TabsContent key={tabValue} value={tabValue} className="space-y-4">
                   {filteredCases.length === 0 ? (
@@ -430,11 +574,18 @@ export default function EmergencyCenterDashboard() {
                         .map((emergencyCase) => (
                           <CaseCard
                             key={emergencyCase.id}
-                            {...emergencyCase}
-                            severity={emergencyCase.severity as 1 | 2 | 3 | 4}
-                            status={emergencyCase.status.toLowerCase().replace(/_/g, "-") as "pending" | "assigned" | "in-progress" | "completed" | "cancelled"}
-                            onAssign={() => handleAssignCase(emergencyCase.id)}
-                            onCancel={() => handleCancelCase(emergencyCase.id)}
+                            id={emergencyCase.id}
+                            description={emergencyCase.description}
+                            descriptionFull={emergencyCase.descriptionFull}
+                            status={emergencyCase.status}
+                            grade={emergencyCase.grade}
+                            reportedAt={emergencyCase.reportedAt}
+                            patientName={emergencyCase.patientName}
+                            contactNumber={emergencyCase.contactNumber}
+                            emergencyType={emergencyCase.emergencyType}
+                            location={emergencyCase.location}
+                            assignedTo={emergencyCase.assignedTo}
+                            symptoms={emergencyCase.symptoms}
                             role="emergency-center"
                           />
                         ))}
@@ -445,6 +596,16 @@ export default function EmergencyCenterDashboard() {
             )}
           </Tabs>
         </div>
+
+        {isMounted && (
+          <NotificationPanel
+            isOpen={isNotificationPanelOpen}
+            onClose={() => setIsNotificationPanelOpen(false)}
+            notifications={notifications}
+            onMarkAsRead={markNotificationAsRead}
+            onMarkAllAsRead={markAllNotificationsAsRead}
+          />
+        )}
       </div>
     </DashboardLayout>
   );

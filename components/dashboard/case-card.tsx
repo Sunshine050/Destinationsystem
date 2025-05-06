@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   AlertTriangle,
   Clock,
@@ -9,8 +8,6 @@ import {
   User,
   Calendar,
   ChevronsRight,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,9 +23,9 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
@@ -36,9 +33,10 @@ import { cn } from "@/lib/utils";
 
 export interface CaseCardProps {
   id: string;
-  title: string;
-  status: "pending" | "assigned" | "in-progress" | "completed" | "cancelled" | "PENDING" | "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
-  severity: 1 | 2 | 3 | 4;
+  description: string;
+  descriptionFull?: string;
+  status: "pending" | "assigned" | "in-progress" | "completed" | "cancelled";
+  grade: "CRITICAL" | "URGENT" | "NON_URGENT";
   reportedAt: string;
   patientName: string;
   contactNumber: string;
@@ -51,40 +49,29 @@ export interface CaseCardProps {
     };
   };
   assignedTo?: string;
-  description?: string;
-  symptoms?: string[] | null; // รองรับ null
-  onAssign?: () => void;
-  onTransfer?: () => void;
-  onComplete?: () => void;
-  onCancel?: () => void;
+  notes?: string;
+  symptoms?: string[] | null;
   role: "emergency-center" | "hospital" | "rescue";
 }
 
 export default function CaseCard({
   id,
-  title,
+  description,
+  descriptionFull = description,
   status,
-  severity,
+  grade,
   reportedAt,
   patientName,
   contactNumber,
   emergencyType,
   location,
   assignedTo,
-  description,
-  symptoms = [], // ค่าเริ่มต้นเป็นอาร์เรย์ว่าง
-  onAssign,
-  onTransfer,
-  onComplete,
-  onCancel,
+  notes,
+  symptoms = [],
   role,
 }: CaseCardProps) {
-  const [expanded, setExpanded] = useState(false);
-
-  // แปลง status ให้เป็นตัวพิมพ์เล็กเพื่อให้สอดคล้องกับการตรวจสอบ
   const normalizedStatus = status.toLowerCase() as "pending" | "assigned" | "in-progress" | "completed" | "cancelled";
 
-  // ฟังก์ชันสำหรับจัดการสีและข้อความตามสถานะและความรุนแรง
   const getStatusColor = (status: string) => {
     switch (status) {
       case "pending":
@@ -98,37 +85,20 @@ export default function CaseCard({
       case "cancelled":
         return "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400";
       default:
-        return "bg-slate-100 text-slate-800";
+        return "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400";
     }
   };
 
-  const getSeverityColor = (severity: number) => {
-    switch (severity) {
-      case 1:
-        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500";
-      case 2:
-        return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-500";
-      case 3:
-        return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-500";
-      case 4:
+  const getGradeColor = (grade: string) => {
+    switch (grade) {
+      case "CRITICAL":
         return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500";
+      case "URGENT":
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-500";
+      case "NON_URGENT":
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500";
       default:
-        return "bg-slate-100 text-slate-800";
-    }
-  };
-
-  const getSeverityLabel = (severity: number) => {
-    switch (severity) {
-      case 1:
-        return "Mild";
-      case 2:
-        return "Moderate";
-      case 3:
-        return "Severe";
-      case 4:
-        return "Critical";
-      default:
-        return "Unknown";
+        return "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400";
     }
   };
 
@@ -149,10 +119,7 @@ export default function CaseCard({
     }
   };
 
-  // ตรวจสอบว่า symptoms เป็นอาร์เรย์หรือไม่ ถ้าไม่ให้เป็นอาร์เรย์ว่าง
   const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
-
-  // ตรวจสอบวันที่ให้แน่ใจว่าแปลงได้
   const reportedDate = new Date(reportedAt);
   const formattedDate = !isNaN(reportedDate.getTime())
     ? reportedDate.toLocaleString()
@@ -165,15 +132,15 @@ export default function CaseCard({
           <div>
             <CardTitle className="flex items-center gap-2 mb-1">
               <AlertTriangle
-                className={cn("h-4 w-4", severity === 4 && "text-red-500")}
+                className={cn("h-4 w-4", grade === "CRITICAL" && "text-red-500")}
               />
-              {title}
+              {description}
             </CardTitle>
             <CardDescription>Case ID: {id}</CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Badge className={getSeverityColor(severity)}>
-              {getSeverityLabel(severity)}
+            <Badge className={getGradeColor(grade)}>
+              {grade || "UNKNOWN"}
             </Badge>
             <Badge className={getStatusColor(normalizedStatus)}>
               {getStatusLabel(normalizedStatus)}
@@ -193,65 +160,15 @@ export default function CaseCard({
           </div>
           <div className="flex items-center text-sm text-slate-500 dark:text-slate-400">
             <Phone className="mr-2 h-4 w-4" />
-            <span>{contactNumber}</span>
+            <span>{contactNumber || "N/A"}</span>
           </div>
           <div className="flex items-center text-sm text-slate-500 dark:text-slate-400">
             <MapPin className="mr-2 h-4 w-4" />
             <span>{location.address}</span>
           </div>
         </div>
-
-        {expanded && (
-          <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-2 mb-3">
-            <div className="text-sm">
-              <span className="font-medium">Emergency Type:</span>{" "}
-              {emergencyType}
-            </div>
-            {description && (
-              <div className="text-sm">
-                <span className="font-medium">Description:</span> {description}
-              </div>
-            )}
-            {safeSymptoms.length > 0 && (
-              <div className="text-sm">
-                <span className="font-medium">Symptoms:</span>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {safeSymptoms.map((symptom, index) => (
-                    <Badge key={index} variant="outline">
-                      {symptom}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            {assignedTo && (
-              <div className="text-sm">
-                <span className="font-medium">Assigned To:</span> {assignedTo}
-              </div>
-            )}
-          </div>
-        )}
       </CardContent>
       <CardFooter className="flex justify-between pt-0">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setExpanded(!expanded)}
-          className="text-sm text-slate-500 dark:text-slate-400"
-        >
-          {expanded ? (
-            <>
-              <ChevronUp className="h-4 w-4 mr-1" />
-              Less details
-            </>
-          ) : (
-            <>
-              <ChevronDown className="h-4 w-4 mr-1" />
-              More details
-            </>
-          )}
-        </Button>
-
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="outline" size="sm" className="ml-auto">
@@ -263,17 +180,17 @@ export default function CaseCard({
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <AlertTriangle
-                  className={cn("h-5 w-5", severity === 4 && "text-red-500")}
+                  className={cn("h-5 w-5", grade === "CRITICAL" && "text-red-500")}
                 />
-                {title}
+                {descriptionFull}
               </DialogTitle>
               <DialogDescription>Case ID: {id}</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 max-h-[60vh] overflow-y-auto py-2">
               <div className="flex gap-2">
-                <Badge className={getSeverityColor(severity)}>
-                  {getSeverityLabel(severity)}
+                <Badge className={getGradeColor(grade)}>
+                  {grade || "UNKNOWN"}
                 </Badge>
                 <Badge className={getStatusColor(normalizedStatus)}>
                   {getStatusLabel(normalizedStatus)}
@@ -289,7 +206,7 @@ export default function CaseCard({
                   </div>
                   <div className="flex items-center">
                     <Phone className="mr-2 h-4 w-4 text-slate-500" />
-                    <span>Contact: {contactNumber}</span>
+                    <span>Contact: {contactNumber || "N/A"}</span>
                   </div>
                 </div>
               </div>
@@ -325,15 +242,15 @@ export default function CaseCard({
                 </div>
               </div>
 
-              {(description || safeSymptoms.length > 0) && (
+              {(notes || safeSymptoms.length > 0) && (
                 <>
                   <Separator />
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Medical Information</p>
-                    {description && (
+                    {notes && (
                       <div className="text-sm">
-                        <strong>Description:</strong>
-                        <p className="mt-1">{description}</p>
+                        <strong>Notes:</strong>
+                        <p className="mt-1">{notes}</p>
                       </div>
                     )}
                     {safeSymptoms.length > 0 && (
@@ -365,26 +282,8 @@ export default function CaseCard({
               )}
             </div>
 
-            <DialogFooter className="flex justify-between sm:justify-between">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (onCancel) onCancel();
-                }}
-              >
-                {normalizedStatus === "completed" ? "Close" : "Cancel Case"}
-              </Button>
-              <div className="space-x-2">
-                {role === "emergency-center" && normalizedStatus === "pending" && onAssign && (
-                  <Button onClick={onAssign}>Assign to Hospital</Button>
-                )}
-                {role === "hospital" && normalizedStatus === "assigned" && onTransfer && (
-                  <Button onClick={onTransfer}>Assign to Rescue Team</Button>
-                )}
-                {role === "rescue" && normalizedStatus === "in-progress" && onComplete && (
-                  <Button onClick={onComplete}>Complete Mission</Button>
-                )}
-              </div>
+            <DialogFooter className="flex justify-end sm:justify-end">
+              {/* ปุ่มแอคชั่นถูกลบทั้งหมด */}
             </DialogFooter>
           </DialogContent>
         </Dialog>

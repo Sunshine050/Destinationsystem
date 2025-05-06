@@ -708,7 +708,6 @@ export default function EmergencyCenterCases() {
                     description={emergencyCase.description}
                     symptoms={emergencyCase.symptoms}
                     onAssign={() => handleAssignCase(emergencyCase.id)}
-                    onCancel={() => handleCancelCase(emergencyCase.id)}
                     role="emergency-center"
                   />
                 ))}
