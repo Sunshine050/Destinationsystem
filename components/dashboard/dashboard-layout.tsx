@@ -1,11 +1,11 @@
-"use client"
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { 
-  AlertTriangle, 
-  LayoutDashboard, 
+import React, { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  AlertTriangle,
+  LayoutDashboard,
   Bell,
   Users,
   FileText,
@@ -21,10 +21,8 @@ import {
   Hospital,
   Ambulance,
   User,
-  Check,
-  Clock
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,7 +30,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -41,119 +39,82 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useTheme } from 'next-themes';
-import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
+import { useTheme } from "next-themes";
+import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  role: 'emergency-center' | 'hospital' | 'rescue';
+  role: "emergency-center" | "hospital" | "rescue";
 }
 
-// Sample notifications data
-const notifications = [
-  {
-    id: 1,
-    title: "New Emergency Case",
-    message: "Critical case reported at Sukhumvit 24",
-    time: "2 minutes ago",
-    type: "emergency",
-    read: false
-  },
-  {
-    id: 2,
-    title: "Hospital Update",
-    message: "Thonburi Hospital has updated their bed capacity",
-    time: "5 minutes ago",
-    type: "hospital",
-    read: false
-  },
-  {
-    id: 3,
-    title: "Case Status Update",
-    message: "Case #ER-2305-001 has been completed",
-    time: "10 minutes ago",
-    type: "status",
-    read: true
-  },
-  {
-    id: 4,
-    title: "System Maintenance",
-    message: "Scheduled maintenance in 2 hours",
-    time: "15 minutes ago",
-    type: "system",
-    read: true
-  }
-];
-
-export default function DashboardLayout({ children, role }: DashboardLayoutProps) {
+export default function DashboardLayout({
+  children,
+  role,
+}: DashboardLayoutProps) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [unreadNotifications, setUnreadNotifications] = useState(
-    notifications.filter(n => !n.read).length
-  );
+
   const { theme, setTheme } = useTheme();
-  const { toast } = useToast();
 
   const roleIcon = {
-    'emergency-center': <PhoneCall className="h-5 w-5 text-red-600" />,
-    'hospital': <Hospital className="h-5 w-5 text-blue-600" />,
-    'rescue': <Ambulance className="h-5 w-5 text-green-600" />,
+    "emergency-center": <PhoneCall className="h-5 w-5 text-red-600" />,
+    hospital: <Hospital className="h-5 w-5 text-blue-600" />,
+    rescue: <Ambulance className="h-5 w-5 text-green-600" />,
   };
 
   const roleColor = {
-    'emergency-center': 'text-red-600',
-    'hospital': 'text-blue-600',
-    'rescue': 'text-green-600',
+    "emergency-center": "text-red-600",
+    hospital: "text-blue-600",
+    rescue: "text-green-600",
   };
 
   const roleName = {
-    'emergency-center': '1669 Response Center',
-    'hospital': 'Hospital Management',
-    'rescue': 'Rescue Team',
+    "emergency-center": "1669 Response Center",
+    hospital: "Hospital Management",
+    rescue: "Rescue Team",
   };
 
   const roleBasePath = {
-    'emergency-center': '/1669',
-    'hospital': '/hospital',
-    'rescue': '/rescue',
+    "emergency-center": "/1669",
+    hospital: "/hospital",
+    rescue: "/rescue",
   };
 
-  const getNavItems = (role: 'emergency-center' | 'hospital' | 'rescue') => {
+  const getNavItems = (role: "emergency-center" | "hospital" | "rescue") => {
     const basePath = roleBasePath[role];
     const items = [
       {
-        name: 'Dashboard',
+        name: "Dashboard",
         icon: <LayoutDashboard className="h-5 w-5" />,
         path: `${basePath}/dashboard`,
       },
       {
-        name: 'Emergency Cases',
+        name: "Emergency Cases",
         icon: <AlertTriangle className="h-5 w-5" />,
         path: `${basePath}/cases`,
       },
       {
-        name: 'Reports',
+        name: "Reports",
         icon: <FileText className="h-5 w-5" />,
         path: `${basePath}/reports`,
       },
       {
-        name: 'Settings',
+        name: "Settings",
         icon: <Settings className="h-5 w-5" />,
         path: `${basePath}/settings`,
       },
     ];
 
-    if (role === 'emergency-center') {
+    if (role === "emergency-center") {
       items.splice(2, 0, {
-        name: 'Hospitals',
+        name: "Hospitals",
         icon: <Hospital className="h-5 w-5" />,
         path: `${basePath}/hospitals`,
       });
-    } else if (role === 'hospital') {
+    } else if (role === "hospital") {
       items.splice(2, 0, {
-        name: 'Rescue Teams',
+        name: "Rescue Teams",
         icon: <Ambulance className="h-5 w-5" />,
         path: `${basePath}/rescue-teams`,
       });
@@ -164,42 +125,8 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
 
   const navItems = getNavItems(role);
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
-
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
-
-  const handleMarkAsRead = (notificationId: number) => {
-    setUnreadNotifications(prev => Math.max(0, prev - 1));
-    toast({
-      title: "Notification marked as read",
-      description: "The notification has been marked as read.",
-    });
-  };
-
-  const handleClearAll = () => {
-    setUnreadNotifications(0);
-    toast({
-      title: "All notifications cleared",
-      description: "All notifications have been marked as read.",
-    });
-  };
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'emergency':
-        return <AlertTriangle className="h-5 w-5 text-red-500" />;
-      case 'hospital':
-        return <Hospital className="h-5 w-5 text-blue-500" />;
-      case 'status':
-        return <Check className="h-5 w-5 text-green-500" />;
-      default:
-        return <Clock className="h-5 w-5 text-slate-500" />;
-    }
-  };
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
@@ -207,17 +134,21 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
       <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30">
         <div className="px-4 h-16 flex items-center justify-between">
           <div className="flex items-center">
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               className="md:hidden mr-2"
               onClick={toggleMobileMenu}
             >
-              {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {isMobileMenuOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
             </Button>
             <div className="hidden md:flex items-center">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="icon"
                 onClick={toggleSidebar}
                 className="mr-2"
@@ -236,76 +167,32 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
+            {/* Notifications Panel - ปล่อยว่าง ไว้ให้ WebSocket เติม data */}
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
-                  {unreadNotifications > 0 && (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-                  )}
                 </Button>
               </SheetTrigger>
               <SheetContent>
                 <SheetHeader>
-                  <SheetTitle className="flex justify-between items-center">
-                    <span>Notifications</span>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={handleClearAll}
-                    >
-                      Mark all as read
-                    </Button>
-                  </SheetTitle>
+                  <SheetTitle>Notifications</SheetTitle>
                 </SheetHeader>
                 <ScrollArea className="h-[calc(100vh-8rem)] mt-4">
                   <div className="space-y-4">
-                    {notifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className={cn(
-                          "p-4 rounded-lg border",
-                          notification.read
-                            ? "bg-white dark:bg-slate-800"
-                            : "bg-blue-50 dark:bg-blue-900/10"
-                        )}
-                      >
-                        <div className="flex items-start gap-3">
-                          {getNotificationIcon(notification.type)}
-                          <div className="flex-1">
-                            <div className="flex justify-between items-start">
-                              <h4 className="font-medium">{notification.title}</h4>
-                              {!notification.read && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleMarkAsRead(notification.id)}
-                                >
-                                  Mark as read
-                                </Button>
-                              )}
-                            </div>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                              {notification.message}
-                            </p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
-                              {notification.time}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                    {/* แสดงรายการแจ้งเตือนจริงจาก state ที่ได้จาก WebSocket */}
                   </div>
                 </ScrollArea>
               </SheetContent>
             </Sheet>
-            
+
+            {/* Theme Switch */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
-                  {theme === 'dark' ? (
+                  {theme === "dark" ? (
                     <Moon className="h-5 w-5" />
                   ) : (
                     <Sun className="h-5 w-5" />
@@ -313,21 +200,22 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setTheme('light')}>
+                <DropdownMenuItem onClick={() => setTheme("light")}>
                   <Sun className="mr-2 h-4 w-4" />
                   <span>Light</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme('dark')}>
+                <DropdownMenuItem onClick={() => setTheme("dark")}>
                   <Moon className="mr-2 h-4 w-4" />
                   <span>Dark</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme('system')}>
+                <DropdownMenuItem onClick={() => setTheme("system")}>
                   <Settings className="mr-2 h-4 w-4" />
                   <span>System</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            
+
+            {/* User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
@@ -359,28 +247,29 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Mobile Navigation Menu */}
-        <div 
+        {/* Mobile Overlay */}
+        <div
           className={`md:hidden fixed inset-0 bg-slate-900/50 z-20 ${
-            isMobileMenuOpen ? 'block' : 'hidden'
+            isMobileMenuOpen ? "block" : "hidden"
           }`}
           onClick={toggleMobileMenu}
         ></div>
-        
-        <aside 
-          className={`
-            w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex-shrink-0
+
+        {/* Sidebar */}
+        <aside
+          className={cn(
+            `w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex-shrink-0
             md:static md:h-[calc(100vh-4rem)] md:block
-            fixed top-16 bottom-0 z-20 transition-all duration-300 ease-in-out
-            ${isMobileMenuOpen ? 'left-0' : '-left-64'}
-            ${isSidebarOpen ? 'md:w-64' : 'md:w-20'}
-          `}
+            fixed top-16 bottom-0 z-20 transition-all duration-300 ease-in-out`,
+            isMobileMenuOpen ? "left-0" : "-left-64",
+            isSidebarOpen ? "md:w-64" : "md:w-20"
+          )}
         >
           <div className="h-full overflow-y-auto py-4">
             <nav className="px-3 space-y-1">
               {navItems.map((item) => (
-                <Link 
-                  key={item.path} 
+                <Link
+                  key={item.path}
                   href={item.path}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
@@ -400,9 +289,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-6">
-          {children}
-        </main>
+        <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
       </div>
     </div>
   );

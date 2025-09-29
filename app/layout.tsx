@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
+import WebSocketProvider from '../components/websocket-provider'; // ใช้ path เดิมที่คุณให้มา
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -25,8 +26,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <Toaster />
+          {/* ห่อด้วย WebSocketProvider และส่ง prop role */}
+          <WebSocketProvider role="emergency-center">
+            {children}
+            <Toaster />
+          </WebSocketProvider>
         </ThemeProvider>
       </body>
     </html>

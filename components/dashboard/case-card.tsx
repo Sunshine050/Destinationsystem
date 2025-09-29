@@ -34,10 +34,12 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
+// เพิ่ม type CaseStatus ตรงนี้
+export type CaseStatus = 'pending' | 'assigned' | 'in-progress' | 'completed' | 'cancelled';
 export interface CaseCardProps {
   id: string;
   title: string;
-  status: 'pending' | 'assigned' | 'in-progress' | 'completed' | 'cancelled';
+  status: CaseStatus;
   severity: 1 | 2 | 3 | 4;
   reportedAt: string;
   patientName: string;
