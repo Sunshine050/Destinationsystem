@@ -1,124 +1,81 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from 'react';
-import { AlertTriangle, MapPin } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 
-interface MapViewProps {
-  locations?: Array<{
-    id: string;
-    title: string;
-    severity: 1 | 2 | 3 | 4;
-    coordinates: {
-      lat: number;
-      lng: number;
-    };
-  }>;
-  center?: {
-    lat: number;
-    lng: number;
-  };
-  zoom?: number;
-  height?: string;
+interface MapLocation {
+  id: string;
+  title: string;
+  severity: number;
+  coordinates: { lat: number; lng: number };
+  address: string;
+  description: string;
+  patientName: string;
+  status: string;
+}
+
+interface MapProps {
+  locations: MapLocation[];
+  selectedLocation: MapLocation | null;
+  setSelectedLocation: (loc: MapLocation | null) => void;
 }
 
 export default function MapView({
-  locations = [],
-  center = { lat: 13.7563, lng: 100.5018 }, // Bangkok by default
-  zoom = 11,
-  height = '400px',
-}: MapViewProps) {
-  const [isLoaded, setIsLoaded] = useState(false);
+  locations,
+  selectedLocation,
+  setSelectedLocation,
+}: MapProps) {
+  const getMarkerIcon = (severity: number) => {
+    const colors: Record<number, string> = {
+      1: "#4ade80", // Green
+      2: "#fbbf24", // Yellow
+      3: "#f97316", // Orange
+      4: "#ef4444", // Red
+    };
 
-  // In a real implementation, this would load and initialize a map library like Google Maps
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoaded(true);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const getSeverityColor = (severity: number) => {
-    switch (severity) {
-      case 1:
-        return 'bg-green-500';
-      case 2:
-        return 'bg-amber-500';
-      case 3:
-        return 'bg-orange-500';
-      case 4:
-        return 'bg-red-500';
-      default:
-        return 'bg-slate-500';
-    }
+    return L.icon({
+      iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+      shadowSize: [41, 41],
+    });
   };
 
   return (
-    <div 
-      className="bg-slate-100 dark:bg-slate-800 rounded-lg relative overflow-hidden"
-      style={{ height }}
+    <MapContainer
+      center={{ lat: 13.7563, lng: 100.5018 }}
+      zoom={10}
+      style={{ width: "100%", height: "500px" }}
     >
-      {!isLoaded ? (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="flex flex-col items-center">
-            <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mb-2"></div>
-            <p className="text-slate-500 dark:text-slate-400">Loading map...</p>
-          </div>
-        </div>
-      ) : locations.length === 0 ? (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <MapPin className="h-8 w-8 mx-auto mb-2 text-slate-400" />
-            <p className="text-slate-500 dark:text-slate-400">
-              No locations to display
-            </p>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="absolute inset-0 bg-[url('https://images.pexels.com/photos/4386442/pexels-photo-4386442.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2')] bg-cover bg-center opacity-50"></div>
-          <div className="absolute inset-0 bg-white dark:bg-slate-900 opacity-50"></div>
-          
-          {/* Map Markers */}
-          {locations.map((location) => (
-            <div
-              key={location.id}
-              className="absolute z-10 transform -translate-x-1/2 -translate-y-1/2"
-              style={{
-                // This would be calculated based on real map coordinates in a real implementation
-                left: `${Math.random() * 80 + 10}%`,
-                top: `${Math.random() * 80 + 10}%`,
-              }}
-            >
-              <div className="relative group">
-                <div className="flex flex-col items-center">
-                  <div className={`w-4 h-4 ${getSeverityColor(location.severity)} rounded-full animate-ping absolute`}></div>
-                  <div className={`w-4 h-4 ${getSeverityColor(location.severity)} rounded-full relative`}></div>
-                  <div className="hidden group-hover:block absolute bottom-full mb-2 w-48 p-2 bg-white dark:bg-slate-800 rounded shadow-lg z-20">
-                    <p className="font-semibold text-sm mb-1 flex items-center">
-                      <AlertTriangle className="h-3 w-3 mr-1" />
-                      {location.title}
-                    </p>
-                    <div className="flex items-center justify-between text-xs">
-                      <Badge className="text-xs" variant="outline">{location.coordinates.lat.toFixed(4)}, {location.coordinates.lng.toFixed(4)}</Badge>
-                    </div>
-                  </div>
-                </div>
-              </div>
+      <TileLayer
+        attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      {locations.map((loc) => (
+        <Marker
+          key={loc.id}
+          position={loc.coordinates}
+          icon={getMarkerIcon(loc.severity)}
+          eventHandlers={{
+            click: () => setSelectedLocation(loc),
+          }}
+        >
+          <Popup>
+            <div>
+              <strong>{loc.title}</strong>
+              <br />
+              ผู้ป่วย: {loc.patientName}
+              <br />
+              สถานะ: {loc.status}
+              <br />
+              {loc.address}
             </div>
-          ))}
-          
-          {/* Map Controls */}
-          <div className="absolute right-4 bottom-4 flex flex-col gap-2">
-            <button className="w-8 h-8 bg-white dark:bg-slate-700 rounded-full shadow flex items-center justify-center text-slate-700 dark:text-slate-200">
-              +
-            </button>
-            <button className="w-8 h-8 bg-white dark:bg-slate-700 rounded-full shadow flex items-center justify-center text-slate-700 dark:text-slate-200">
-              -
-            </button>
-          </div>
-        </>
-      )}
-    </div>
+          </Popup>
+        </Marker>
+      ))}
+    </MapContainer>
   );
 }

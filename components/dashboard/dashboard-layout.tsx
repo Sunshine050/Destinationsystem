@@ -45,54 +45,51 @@ import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  isRead: boolean;
+  createdAt: string;
+  metadata?: any;
+}
+
 interface DashboardLayoutProps {
   children: React.ReactNode;
   role: 'emergency-center' | 'hospital' | 'rescue';
+  notifications: Notification[] | undefined;
+  unreadCount: number;
+  onMarkAsRead: (id: string) => void;
+  onMarkAllAsRead: () => void;
 }
 
-// Sample notifications data
-const notifications = [
-  {
-    id: 1,
-    title: "New Emergency Case",
-    message: "Critical case reported at Sukhumvit 24",
-    time: "2 minutes ago",
-    type: "emergency",
-    read: false
-  },
-  {
-    id: 2,
-    title: "Hospital Update",
-    message: "Thonburi Hospital has updated their bed capacity",
-    time: "5 minutes ago",
-    type: "hospital",
-    read: false
-  },
-  {
-    id: 3,
-    title: "Case Status Update",
-    message: "Case #ER-2305-001 has been completed",
-    time: "10 minutes ago",
-    type: "status",
-    read: true
-  },
-  {
-    id: 4,
-    title: "System Maintenance",
-    message: "Scheduled maintenance in 2 hours",
-    time: "15 minutes ago",
-    type: "system",
-    read: true
-  }
-];
+// Utility function to format relative time
+const formatRelativeTime = (dateString: string): string => {
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffInMs = now.getTime() - date.getTime();
+  const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  const diffInDays = Math.floor(diffInHours / 24);
 
-export default function DashboardLayout({ children, role }: DashboardLayoutProps) {
+  if (diffInMinutes < 1) return 'Just now';
+  if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
+  if (diffInHours < 24) return `${diffInHours} hours ago`;
+  return `${diffInDays} days ago`;
+};
+
+export default function DashboardLayout({ 
+  children, 
+  role, 
+  notifications = [], 
+  unreadCount, 
+  onMarkAsRead, 
+  onMarkAllAsRead 
+}: DashboardLayoutProps) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [unreadNotifications, setUnreadNotifications] = useState(
-    notifications.filter(n => !n.read).length
-  );
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
 
@@ -172,8 +169,8 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  const handleMarkAsRead = (notificationId: number) => {
-    setUnreadNotifications(prev => Math.max(0, prev - 1));
+  const handleMarkAsRead = (notificationId: string) => {
+    onMarkAsRead(notificationId);
     toast({
       title: "Notification marked as read",
       description: "The notification has been marked as read.",
@@ -181,7 +178,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
   };
 
   const handleClearAll = () => {
-    setUnreadNotifications(0);
+    onMarkAllAsRead();
     toast({
       title: "All notifications cleared",
       description: "All notifications have been marked as read.",
@@ -242,7 +239,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
-                  {unreadNotifications > 0 && (
+                  {unreadCount > 0 && (
                     <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                   )}
                 </Button>
@@ -262,12 +259,12 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                 </SheetHeader>
                 <ScrollArea className="h-[calc(100vh-8rem)] mt-4">
                   <div className="space-y-4">
-                    {notifications.map((notification) => (
+                    {notifications?.map((notification) => (
                       <div
                         key={notification.id}
                         className={cn(
                           "p-4 rounded-lg border",
-                          notification.read
+                          notification.isRead
                             ? "bg-white dark:bg-slate-800"
                             : "bg-blue-50 dark:bg-blue-900/10"
                         )}
@@ -277,7 +274,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                           <div className="flex-1">
                             <div className="flex justify-between items-start">
                               <h4 className="font-medium">{notification.title}</h4>
-                              {!notification.read && (
+                              {!notification.isRead && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -288,15 +285,20 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                               )}
                             </div>
                             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                              {notification.message}
+                              {notification.body}
                             </p>
                             <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
-                              {notification.time}
+                              {formatRelativeTime(notification.createdAt)}
                             </p>
                           </div>
                         </div>
                       </div>
-                    ))}
+                    )) || <div className="text-center py-8 text-slate-500 dark:text-slate-400">Loading notifications...</div>}
+                    {notifications && notifications.length === 0 && (
+                      <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                        No notifications
+                      </div>
+                    )}
                   </div>
                 </ScrollArea>
               </SheetContent>

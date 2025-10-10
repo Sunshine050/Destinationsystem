@@ -234,12 +234,13 @@ export default function EmergencyCenterDashboard() {
         }
       );
       if (!response.ok) throw new Error("Failed to mark notification as read");
-      setNotifications((prev) =>
-        prev.map((notif) =>
+      setNotifications((prev) => {
+        const updated = prev.map((notif) =>
           notif.id === id ? { ...notif, isRead: true } : notif
-        )
-      );
-      setHasUnreadNotifications(notifications.some((n) => !n.isRead && n.id !== id));
+        );
+        setHasUnreadNotifications(updated.some((n) => !n.isRead));
+        return updated;
+      });
     } catch (error) {
       console.error("Error marking notification as read:", error);
       toast({
@@ -359,7 +360,7 @@ export default function EmergencyCenterDashboard() {
       webSocketClient.on("notification", notificationHandler);
       webSocketClient.onEmergency(emergencyHandler);
       webSocketClient.on("hospitalCreated", hospitalCreatedHandler);
-      webSocketClient.onStatusUpdate(statsUpdatedHandler);
+      webSocketClient.on("statsUpdated", statsUpdatedHandler);
 
       webSocketClient.onDisconnect(() => {
         toast({
@@ -386,7 +387,7 @@ export default function EmergencyCenterDashboard() {
         webSocketClient.off("notification", notificationHandler);
         webSocketClient.offEmergency(emergencyHandler);
         webSocketClient.off("hospitalCreated", hospitalCreatedHandler);
-        webSocketClient.offStatusUpdate(statsUpdatedHandler);
+        webSocketClient.off("statsUpdated", statsUpdatedHandler);
         webSocketClient.disconnect();
       };
     }
@@ -400,10 +401,23 @@ export default function EmergencyCenterDashboard() {
       c.emergencyType.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // 👇 คำนวณจำนวนเคสตามสถานะ
+  const pendingCases = cases.filter((c) => c.status === "pending").length;
+  const assignedCases = cases.filter((c) => c.status === "assigned").length;
   const inProgressCases = cases.filter((c) => c.status === "in-progress").length;
+  const workingCases = assignedCases + inProgressCases; // กำลังดำเนินการ
+  const criticalCases = cases.filter((c) => c.grade === "CRITICAL").length;
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
-    <DashboardLayout role="emergency-center">
+    <DashboardLayout 
+      role="emergency-center"
+      notifications={notifications}
+      unreadCount={unreadCount}
+      onMarkAsRead={markNotificationAsRead}
+      onMarkAllAsRead={markAllNotificationsAsRead}
+    >
       <div className="relative space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
@@ -453,9 +467,7 @@ export default function EmergencyCenterDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  <div className="text-2xl font-bold">
-                    {stats.activeEmergencies}
-                  </div>
+                  <div className="text-2xl font-bold">{pendingCases}</div>
                   <div className="p-2 bg-amber-100 dark:bg-amber-900/20 rounded-full">
                     <Clock className="h-5 w-5 text-amber-600 dark:text-amber-500" />
                   </div>
@@ -470,9 +482,7 @@ export default function EmergencyCenterDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  <div className="text-2xl font-bold">
-                    {inProgressCases}
-                  </div>
+                  <div className="text-2xl font-bold">{workingCases}</div>
                   <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-full">
                     <Activity className="h-5 w-5 text-blue-600 dark:text-blue-500" />
                   </div>
@@ -487,7 +497,7 @@ export default function EmergencyCenterDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  <div className="text-2xl font-bold">{stats.criticalCases}</div>
+                  <div className="text-2xl font-bold">{criticalCases}</div>
                   <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-full">
                     <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-500" />
                   </div>
@@ -502,9 +512,7 @@ export default function EmergencyCenterDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  <div className="text-2xl font-bold">
-                    {stats.connectedHospitals}
-                  </div>
+                  <div className="text-2xl font-bold">{stats?.connectedHospitals || 0}</div>
                   <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-full">
                     <Hospital className="h-5 w-5 text-green-600 dark:text-green-500" />
                   </div>
@@ -535,7 +543,7 @@ export default function EmergencyCenterDashboard() {
               <TabsTrigger value="pending">
                 รอการดำเนินการ{" "}
                 <Badge className="ml-1">
-                  {stats?.activeEmergencies || 0}
+                  {pendingCases}
                 </Badge>
               </TabsTrigger>
               <TabsTrigger value="assigned">
