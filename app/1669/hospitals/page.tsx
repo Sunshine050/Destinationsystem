@@ -42,7 +42,7 @@ interface HospitalStaff {
 }
 
 interface Hospital {
-  id: number;
+  id: string;
   name: string;
   address: string;
   phone: string;
@@ -64,7 +64,7 @@ export default function HospitalsPage() {
       const token = localStorage.getItem("access_token");
       if (!token) throw new Error("No access token found. Please log in.");
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dashboard/hospitals`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/hospitals`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -105,14 +105,14 @@ export default function HospitalsPage() {
     }
   };
 
-  const handleContactHospital = (hospitalId: number) => {
+  const handleContactHospital = (hospitalId: string) => {
     toast({
       title: "Contacting Hospital",
       description: "Establishing communication with hospital staff...",
     });
   };
 
-  const handleUpdateStatus = (hospitalId: number) => {
+  const handleUpdateStatus = (hospitalId: string) => {
     toast({
       title: "Status Updated",
       description: "Hospital status has been updated successfully.",
@@ -156,10 +156,6 @@ export default function HospitalsPage() {
               onChange={e => setSearchQuery(e.target.value)}
             />
           </div>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Hospital
-          </Button>
         </div>
 
         {/* Summary Cards */}

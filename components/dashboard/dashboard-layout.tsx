@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   AlertTriangle, 
   LayoutDashboard, 
@@ -88,6 +88,7 @@ export default function DashboardLayout({
   onMarkAllAsRead 
 }: DashboardLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -167,6 +168,16 @@ export default function DashboardLayout({
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    router.push('/login');
+    toast({
+      title: "Logged out successfully",
+      description: "You have been logged out.",
+    });
   };
 
   const handleMarkAsRead = (notificationId: string) => {
@@ -350,7 +361,7 @@ export default function DashboardLayout({
                   <span>Settings</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>
