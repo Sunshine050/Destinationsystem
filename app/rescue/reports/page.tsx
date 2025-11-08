@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/app/shared/hooks/use-toast";
 
 // Sample rescue team report data
 const reports = [
@@ -25,8 +25,8 @@ const reports = [
       totalMissions: 45,
       avgResponseTime: 8.5,
       criticalCases: 12,
-      successRate: 96
-    }
+      successRate: 96,
+    },
   },
   {
     id: 2,
@@ -37,8 +37,8 @@ const reports = [
       activeHours: 180,
       missionTime: 145,
       standbyTime: 35,
-      teamUtilization: 92
-    }
+      teamUtilization: 92,
+    },
   },
   {
     id: 3,
@@ -49,9 +49,9 @@ const reports = [
       vehicleUsage: 85,
       equipmentCondition: 95,
       maintenanceNeeded: 2,
-      fuelConsumption: 180
-    }
-  }
+      fuelConsumption: 180,
+    },
+  },
 ];
 
 export default function RescueReportsPage() {
@@ -67,7 +67,9 @@ export default function RescueReportsPage() {
       setIsGenerating(false);
       toast({
         title: "Report Generated",
-        description: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} report for the last ${timePeriod} has been generated.`,
+        description: `${
+          reportType.charAt(0).toUpperCase() + reportType.slice(1)
+        } report for the last ${timePeriod} has been generated.`,
       });
     }, 2000);
   };
@@ -79,9 +81,10 @@ export default function RescueReportsPage() {
     });
   };
 
-  const filteredReports = reportType === "all" 
-    ? reports 
-    : reports.filter(r => r.type === reportType);
+  const filteredReports =
+    reportType === "all"
+      ? reports
+      : reports.filter((r) => r.type === reportType);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -89,7 +92,9 @@ export default function RescueReportsPage() {
         <Button variant="outline" size="icon" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight">Rescue Team Reports</h1>
+        <h1 className="text-3xl font-bold tracking-tight">
+          Rescue Team Reports
+        </h1>
       </div>
 
       <div className="flex flex-wrap gap-4 items-center">
@@ -183,27 +188,36 @@ export default function RescueReportsPage() {
                 <span className="font-medium">96%</span>
               </div>
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-green-500 rounded-full" style={{ width: "96%" }} />
+                <div
+                  className="h-full bg-green-500 rounded-full"
+                  style={{ width: "96%" }}
+                />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Team Utilization</span>
                 <span className="font-medium">92%</span>
               </div>
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500 rounded-full" style={{ width: "92%" }} />
+                <div
+                  className="h-full bg-blue-500 rounded-full"
+                  style={{ width: "92%" }}
+                />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Equipment Readiness</span>
                 <span className="font-medium">95%</span>
               </div>
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-purple-500 rounded-full" style={{ width: "95%" }} />
+                <div
+                  className="h-full bg-purple-500 rounded-full"
+                  style={{ width: "95%" }}
+                />
               </div>
             </div>
           </div>
@@ -228,7 +242,11 @@ export default function RescueReportsPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleDownload(report.id)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDownload(report.id)}
+                  >
                     <Download className="mr-2 h-4 w-4" />
                     Download
                   </Button>

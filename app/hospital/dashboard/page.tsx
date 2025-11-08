@@ -1,120 +1,124 @@
-"use client"
+"use client";
 
-import { useState } from 'react';
-import DashboardLayout from '@/components/dashboard/dashboard-layout';
+import { useState } from "react";
+import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
   AlertTriangle,
   Ambulance,
   Clock,
   Heart,
   Users,
   Search,
-  Activity
-} from 'lucide-react';
-import CaseCard from '@/components/dashboard/case-card';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+  Activity,
+} from "lucide-react";
+import CaseCard from "@/components/dashboard/case-card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/app/shared/hooks/use-toast";
 
 // Emergency cases sample data - hospital view
 const hospitalCases = [
   {
-    id: 'ER-2305-002',
-    title: 'Unconscious Person at Central Plaza',
-    status: 'assigned',
+    id: "ER-2305-002",
+    title: "Unconscious Person at Central Plaza",
+    status: "assigned",
     severity: 2,
-    reportedAt: '2025-03-15T10:05:43',
-    patientName: 'Wanida Rakdee',
-    contactNumber: '089-876-5432',
-    emergencyType: 'Unconsciousness',
+    reportedAt: "2025-03-15T10:05:43",
+    patientName: "Wanida Rakdee",
+    contactNumber: "089-876-5432",
+    emergencyType: "Unconsciousness",
     location: {
-      address: 'Central Plaza, 5th Floor, Food Court',
+      address: "Central Plaza, 5th Floor, Food Court",
       coordinates: {
         lat: 13.8765,
         lng: 100.4321,
       },
     },
-    assignedTo: 'Thonburi Hospital',
-    description: 'Patient suddenly collapsed while eating. No visible injuries.',
-    symptoms: ['Unconsciousness', 'Pallor'],
+    assignedTo: "Thonburi Hospital",
+    description:
+      "Patient suddenly collapsed while eating. No visible injuries.",
+    symptoms: ["Unconsciousness", "Pallor"],
   },
   {
-    id: 'ER-2305-003',
-    title: 'Drowning at Blue Beach Resort',
-    status: 'in-progress',
+    id: "ER-2305-003",
+    title: "Drowning at Blue Beach Resort",
+    status: "in-progress",
     severity: 4,
-    reportedAt: '2025-03-15T11:17:22',
-    patientName: 'Michael Johnson',
-    contactNumber: '062-345-6789',
-    emergencyType: 'Drowning',
+    reportedAt: "2025-03-15T11:17:22",
+    patientName: "Michael Johnson",
+    contactNumber: "062-345-6789",
+    emergencyType: "Drowning",
     location: {
-      address: 'Blue Beach Resort, Koh Samui',
+      address: "Blue Beach Resort, Koh Samui",
       coordinates: {
         lat: 9.5678,
         lng: 100.0123,
       },
     },
-    assignedTo: 'Samui International Hospital',
-    description: 'Tourist found unconscious in hotel swimming pool. CPR in progress by hotel staff.',
-    symptoms: ['Unconsciousness', 'Not Breathing', 'Cyanosis'],
+    assignedTo: "Samui International Hospital",
+    description:
+      "Tourist found unconscious in hotel swimming pool. CPR in progress by hotel staff.",
+    symptoms: ["Unconsciousness", "Not Breathing", "Cyanosis"],
   },
   {
-    id: 'ER-2305-004',
-    title: 'Elderly Fall at Bangkae Home',
-    status: 'completed',
+    id: "ER-2305-004",
+    title: "Elderly Fall at Bangkae Home",
+    status: "completed",
     severity: 2,
-    reportedAt: '2025-03-15T08:45:00',
-    patientName: 'Prasert Suksawat',
-    contactNumber: '081-987-6543',
-    emergencyType: 'Fall',
+    reportedAt: "2025-03-15T08:45:00",
+    patientName: "Prasert Suksawat",
+    contactNumber: "081-987-6543",
+    emergencyType: "Fall",
     location: {
-      address: 'Bangkae Elderly Home, 123 Phetkasem Rd.',
+      address: "Bangkae Elderly Home, 123 Phetkasem Rd.",
       coordinates: {
         lat: 13.7123,
         lng: 100.4567,
       },
     },
-    assignedTo: 'Siriraj Hospital',
-    description: 'Elderly male fell in bathroom. Complaining of hip pain and unable to stand.',
-    symptoms: ['Hip Pain', 'Limited Mobility', 'Bruising'],
+    assignedTo: "Siriraj Hospital",
+    description:
+      "Elderly male fell in bathroom. Complaining of hip pain and unable to stand.",
+    symptoms: ["Hip Pain", "Limited Mobility", "Bruising"],
   },
   {
-    id: 'ER-2305-005',
-    title: 'Stroke Symptoms at Office Building',
-    status: 'assigned',
+    id: "ER-2305-005",
+    title: "Stroke Symptoms at Office Building",
+    status: "assigned",
     severity: 3,
-    reportedAt: '2025-03-15T12:30:15',
-    patientName: 'Somying Jaidee',
-    contactNumber: '085-123-4567',
-    emergencyType: 'Stroke',
+    reportedAt: "2025-03-15T12:30:15",
+    patientName: "Somying Jaidee",
+    contactNumber: "085-123-4567",
+    emergencyType: "Stroke",
     location: {
-      address: 'SCB Park Plaza, 12th Floor, Ratchadapisek Rd.',
+      address: "SCB Park Plaza, 12th Floor, Ratchadapisek Rd.",
       coordinates: {
         lat: 13.8123,
         lng: 100.5678,
       },
     },
-    assignedTo: 'Thonburi Hospital',
-    description: 'Female patient with sudden facial drooping and slurred speech during meeting.',
-    symptoms: ['Facial Drooping', 'Slurred Speech', 'Arm Weakness'],
+    assignedTo: "Thonburi Hospital",
+    description:
+      "Female patient with sudden facial drooping and slurred speech during meeting.",
+    symptoms: ["Facial Drooping", "Slurred Speech", "Arm Weakness"],
   },
 ];
 
 // Define counts for dashboard stats
 const stats = {
-  assigned: hospitalCases.filter(c => c.status === 'assigned').length,
-  inProgress: hospitalCases.filter(c => c.status === 'in-progress').length,
-  completed: hospitalCases.filter(c => c.status === 'completed').length,
-  critical: hospitalCases.filter(c => c.severity === 4).length,
+  assigned: hospitalCases.filter((c) => c.status === "assigned").length,
+  inProgress: hospitalCases.filter((c) => c.status === "in-progress").length,
+  completed: hospitalCases.filter((c) => c.status === "completed").length,
+  critical: hospitalCases.filter((c) => c.severity === 4).length,
   total: hospitalCases.length,
   beds: {
     total: 120,
@@ -126,30 +130,31 @@ const stats = {
       available: 3,
     },
   },
-}
+};
 
 export default function HospitalDashboard() {
   const [cases, setCases] = useState(hospitalCases);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
   // Filter cases based on search query
-  const filteredCases = cases.filter(c => 
-    c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.emergencyType.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredCases = cases.filter(
+    (c) =>
+      c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.emergencyType.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleTransferCase = (caseId: string) => {
-    setCases(prev => 
-      prev.map(c => 
-        c.id === caseId 
-          ? { ...c, status: 'in-progress', assignedTo: 'Rescue Team Alpha' } 
+    setCases((prev) =>
+      prev.map((c) =>
+        c.id === caseId
+          ? { ...c, status: "in-progress", assignedTo: "Rescue Team Alpha" }
           : c
       )
     );
-    
+
     toast({
       title: "Case transferred",
       description: `Case ${caseId} has been assigned to Rescue Team Alpha.`,
@@ -157,14 +162,10 @@ export default function HospitalDashboard() {
   };
 
   const handleCancelCase = (caseId: string) => {
-    setCases(prev => 
-      prev.map(c => 
-        c.id === caseId 
-          ? { ...c, status: 'cancelled' } 
-          : c
-      )
+    setCases((prev) =>
+      prev.map((c) => (c.id === caseId ? { ...c, status: "cancelled" } : c))
     );
-    
+
     toast({
       title: "Case cancelled",
       description: `Case ${caseId} has been cancelled.`,
@@ -203,7 +204,7 @@ export default function HospitalDashboard() {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -219,7 +220,7 @@ export default function HospitalDashboard() {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -235,7 +236,7 @@ export default function HospitalDashboard() {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -258,7 +259,9 @@ export default function HospitalDashboard() {
           <Card>
             <CardHeader>
               <CardTitle>Hospital Resources</CardTitle>
-              <CardDescription>Current capacity and availability</CardDescription>
+              <CardDescription>
+                Current capacity and availability
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -266,17 +269,24 @@ export default function HospitalDashboard() {
                   <div className="flex justify-between mb-2">
                     <span className="text-sm font-medium">General Beds</span>
                     <span className="text-sm text-slate-500">
-                      {stats.beds.occupied - stats.beds.icu.occupied}/{stats.beds.total - stats.beds.icu.total}
+                      {stats.beds.occupied - stats.beds.icu.occupied}/
+                      {stats.beds.total - stats.beds.icu.total}
                     </span>
                   </div>
                   <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-blue-500 rounded-full" 
-                      style={{ width: `${((stats.beds.occupied - stats.beds.icu.occupied) / (stats.beds.total - stats.beds.icu.total)) * 100}%` }}
+                    <div
+                      className="h-full bg-blue-500 rounded-full"
+                      style={{
+                        width: `${
+                          ((stats.beds.occupied - stats.beds.icu.occupied) /
+                            (stats.beds.total - stats.beds.icu.total)) *
+                          100
+                        }%`,
+                      }}
                     ></div>
                   </div>
                 </div>
-                
+
                 <div>
                   <div className="flex justify-between mb-2">
                     <span className="text-sm font-medium">ICU Beds</span>
@@ -285,34 +295,38 @@ export default function HospitalDashboard() {
                     </span>
                   </div>
                   <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-red-500 rounded-full" 
-                      style={{ width: `${(stats.beds.icu.occupied / stats.beds.icu.total) * 100}%` }}
+                    <div
+                      className="h-full bg-red-500 rounded-full"
+                      style={{
+                        width: `${
+                          (stats.beds.icu.occupied / stats.beds.icu.total) * 100
+                        }%`,
+                      }}
                     ></div>
                   </div>
                 </div>
-                
+
                 <div>
                   <div className="flex justify-between mb-2">
                     <span className="text-sm font-medium">Emergency Staff</span>
                     <span className="text-sm text-slate-500">15/20</span>
                   </div>
                   <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-green-500 rounded-full" 
+                    <div
+                      className="h-full bg-green-500 rounded-full"
                       style={{ width: `${(15 / 20) * 100}%` }}
                     ></div>
                   </div>
                 </div>
-                
+
                 <div>
                   <div className="flex justify-between mb-2">
                     <span className="text-sm font-medium">Ambulances</span>
                     <span className="text-sm text-slate-500">3/8</span>
                   </div>
                   <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-amber-500 rounded-full" 
+                    <div
+                      className="h-full bg-amber-500 rounded-full"
                       style={{ width: `${(3 / 8) * 100}%` }}
                     ></div>
                   </div>
@@ -320,7 +334,7 @@ export default function HospitalDashboard() {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader>
               <CardTitle>Rescue Teams</CardTitle>
@@ -338,11 +352,14 @@ export default function HospitalDashboard() {
                       <p className="text-sm text-slate-500">Ambulance A-1</p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-500">
+                  <Badge
+                    variant="outline"
+                    className="bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-500"
+                  >
                     Available
                   </Badge>
                 </div>
-                
+
                 <div className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-amber-100 dark:bg-amber-900/20 rounded-full">
@@ -353,11 +370,14 @@ export default function HospitalDashboard() {
                       <p className="text-sm text-slate-500">Ambulance B-2</p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="bg-amber-100 dark:bg-amber-900/20 text-amber-600 dark:text-amber-500">
+                  <Badge
+                    variant="outline"
+                    className="bg-amber-100 dark:bg-amber-900/20 text-amber-600 dark:text-amber-500"
+                  >
                     On Standby
                   </Badge>
                 </div>
-                
+
                 <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/10 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-full">
@@ -368,11 +388,14 @@ export default function HospitalDashboard() {
                       <p className="text-sm text-slate-500">Ambulance C-3</p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-500">
+                  <Badge
+                    variant="outline"
+                    className="bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-500"
+                  >
                     On Mission
                   </Badge>
                 </div>
-                
+
                 <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-full">
@@ -380,7 +403,9 @@ export default function HospitalDashboard() {
                     </div>
                     <div>
                       <p className="font-medium">Emergency Staff</p>
-                      <p className="text-sm text-slate-500">On-call personnel</p>
+                      <p className="text-sm text-slate-500">
+                        On-call personnel
+                      </p>
                     </div>
                   </div>
                   <div className="text-sm font-medium">15 available</div>
@@ -419,24 +444,34 @@ export default function HospitalDashboard() {
                 Completed <Badge className="ml-1">{stats.completed}</Badge>
               </TabsTrigger>
             </TabsList>
-            
-            {['all', 'assigned', 'in-progress', 'completed'].map((tabValue) => (
-              <TabsContent key={tabValue} value={tabValue} className="space-y-4">
+
+            {["all", "assigned", "in-progress", "completed"].map((tabValue) => (
+              <TabsContent
+                key={tabValue}
+                value={tabValue}
+                className="space-y-4"
+              >
                 {filteredCases.length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-slate-500 dark:text-slate-400">No cases found</p>
+                    <p className="text-slate-500 dark:text-slate-400">
+                      No cases found
+                    </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {filteredCases
-                      .filter(c => tabValue === 'all' || c.status === tabValue)
+                      .filter(
+                        (c) => tabValue === "all" || c.status === tabValue
+                      )
                       .map((emergencyCase) => (
                         <CaseCard
                           key={emergencyCase.id}
                           {...emergencyCase}
                           severity={emergencyCase.severity as 1 | 2 | 3 | 4}
                           status={emergencyCase.status as any}
-                          onTransfer={() => handleTransferCase(emergencyCase.id)}
+                          onTransfer={() =>
+                            handleTransferCase(emergencyCase.id)
+                          }
                           onCancel={() => handleCancelCase(emergencyCase.id)}
                           role="hospital"
                         />

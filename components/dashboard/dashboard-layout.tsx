@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { 
-  AlertTriangle, 
-  LayoutDashboard, 
+import React, { useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  AlertTriangle,
+  LayoutDashboard,
   Bell,
   Users,
   FileText,
@@ -22,9 +22,9 @@ import {
   Ambulance,
   User,
   Check,
-  Clock
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
+  Clock,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,7 +32,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -41,9 +41,9 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useTheme } from 'next-themes';
-import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
+import { useTheme } from "next-themes";
+import { cn } from "@/lib/utils";
+import { useToast } from "@/app/shared/hooks/use-toast";
 
 interface Notification {
   id: string;
@@ -57,7 +57,7 @@ interface Notification {
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  role: 'emergency-center' | 'hospital' | 'rescue';
+  role: "emergency-center" | "hospital" | "rescue";
   notifications: Notification[] | undefined;
   unreadCount: number;
   onMarkAsRead: (id: string) => void;
@@ -73,19 +73,19 @@ const formatRelativeTime = (dateString: string): string => {
   const diffInHours = Math.floor(diffInMinutes / 60);
   const diffInDays = Math.floor(diffInHours / 24);
 
-  if (diffInMinutes < 1) return 'Just now';
+  if (diffInMinutes < 1) return "Just now";
   if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
   if (diffInHours < 24) return `${diffInHours} hours ago`;
   return `${diffInDays} days ago`;
 };
 
-export default function DashboardLayout({ 
-  children, 
-  role, 
-  notifications = [], 
-  unreadCount, 
-  onMarkAsRead, 
-  onMarkAllAsRead 
+export default function DashboardLayout({
+  children,
+  role,
+  notifications = [],
+  unreadCount,
+  onMarkAsRead,
+  onMarkAllAsRead,
 }: DashboardLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -95,63 +95,63 @@ export default function DashboardLayout({
   const { toast } = useToast();
 
   const roleIcon = {
-    'emergency-center': <PhoneCall className="h-5 w-5 text-red-600" />,
-    'hospital': <Hospital className="h-5 w-5 text-blue-600" />,
-    'rescue': <Ambulance className="h-5 w-5 text-green-600" />,
+    "emergency-center": <PhoneCall className="h-5 w-5 text-red-600" />,
+    hospital: <Hospital className="h-5 w-5 text-blue-600" />,
+    rescue: <Ambulance className="h-5 w-5 text-green-600" />,
   };
 
   const roleColor = {
-    'emergency-center': 'text-red-600',
-    'hospital': 'text-blue-600',
-    'rescue': 'text-green-600',
+    "emergency-center": "text-red-600",
+    hospital: "text-blue-600",
+    rescue: "text-green-600",
   };
 
   const roleName = {
-    'emergency-center': '1669 Response Center',
-    'hospital': 'Hospital Management',
-    'rescue': 'Rescue Team',
+    "emergency-center": "1669 Response Center",
+    hospital: "Hospital Management",
+    rescue: "Rescue Team",
   };
 
   const roleBasePath = {
-    'emergency-center': '/1669',
-    'hospital': '/hospital',
-    'rescue': '/rescue',
+    "emergency-center": "/1669",
+    hospital: "/hospital",
+    rescue: "/rescue",
   };
 
-  const getNavItems = (role: 'emergency-center' | 'hospital' | 'rescue') => {
+  const getNavItems = (role: "emergency-center" | "hospital" | "rescue") => {
     const basePath = roleBasePath[role];
     const items = [
       {
-        name: 'Dashboard',
+        name: "Dashboard",
         icon: <LayoutDashboard className="h-5 w-5" />,
         path: `${basePath}/dashboard`,
       },
       {
-        name: 'Emergency Cases',
+        name: "Emergency Cases",
         icon: <AlertTriangle className="h-5 w-5" />,
         path: `${basePath}/cases`,
       },
       {
-        name: 'Reports',
+        name: "Reports",
         icon: <FileText className="h-5 w-5" />,
         path: `${basePath}/reports`,
       },
       {
-        name: 'Settings',
+        name: "Settings",
         icon: <Settings className="h-5 w-5" />,
         path: `${basePath}/settings`,
       },
     ];
 
-    if (role === 'emergency-center') {
+    if (role === "emergency-center") {
       items.splice(2, 0, {
-        name: 'Hospitals',
+        name: "Hospitals",
         icon: <Hospital className="h-5 w-5" />,
         path: `${basePath}/hospitals`,
       });
-    } else if (role === 'hospital') {
+    } else if (role === "hospital") {
       items.splice(2, 0, {
-        name: 'Rescue Teams',
+        name: "Rescue Teams",
         icon: <Ambulance className="h-5 w-5" />,
         path: `${basePath}/rescue-teams`,
       });
@@ -171,9 +171,9 @@ export default function DashboardLayout({
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    router.push('/login');
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    router.push("/login");
     toast({
       title: "Logged out successfully",
       description: "You have been logged out.",
@@ -198,11 +198,11 @@ export default function DashboardLayout({
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'emergency':
+      case "emergency":
         return <AlertTriangle className="h-5 w-5 text-red-500" />;
-      case 'hospital':
+      case "hospital":
         return <Hospital className="h-5 w-5 text-blue-500" />;
-      case 'status':
+      case "status":
         return <Check className="h-5 w-5 text-green-500" />;
       default:
         return <Clock className="h-5 w-5 text-slate-500" />;
@@ -215,17 +215,21 @@ export default function DashboardLayout({
       <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30">
         <div className="px-4 h-16 flex items-center justify-between">
           <div className="flex items-center">
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               className="md:hidden mr-2"
               onClick={toggleMobileMenu}
             >
-              {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {isMobileMenuOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
             </Button>
             <div className="hidden md:flex items-center">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="icon"
                 onClick={toggleSidebar}
                 className="mr-2"
@@ -244,7 +248,7 @@ export default function DashboardLayout({
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <Sheet>
               <SheetTrigger asChild>
@@ -259,8 +263,8 @@ export default function DashboardLayout({
                 <SheetHeader>
                   <SheetTitle className="flex justify-between items-center">
                     <span>Notifications</span>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={handleClearAll}
                     >
@@ -284,12 +288,16 @@ export default function DashboardLayout({
                           {getNotificationIcon(notification.type)}
                           <div className="flex-1">
                             <div className="flex justify-between items-start">
-                              <h4 className="font-medium">{notification.title}</h4>
+                              <h4 className="font-medium">
+                                {notification.title}
+                              </h4>
                               {!notification.isRead && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleMarkAsRead(notification.id)}
+                                  onClick={() =>
+                                    handleMarkAsRead(notification.id)
+                                  }
                                 >
                                   Mark as read
                                 </Button>
@@ -304,7 +312,11 @@ export default function DashboardLayout({
                           </div>
                         </div>
                       </div>
-                    )) || <div className="text-center py-8 text-slate-500 dark:text-slate-400">Loading notifications...</div>}
+                    )) || (
+                      <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                        Loading notifications...
+                      </div>
+                    )}
                     {notifications && notifications.length === 0 && (
                       <div className="text-center py-8 text-slate-500 dark:text-slate-400">
                         No notifications
@@ -314,11 +326,11 @@ export default function DashboardLayout({
                 </ScrollArea>
               </SheetContent>
             </Sheet>
-            
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
-                  {theme === 'dark' ? (
+                  {theme === "dark" ? (
                     <Moon className="h-5 w-5" />
                   ) : (
                     <Sun className="h-5 w-5" />
@@ -326,21 +338,21 @@ export default function DashboardLayout({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setTheme('light')}>
+                <DropdownMenuItem onClick={() => setTheme("light")}>
                   <Sun className="mr-2 h-4 w-4" />
                   <span>Light</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme('dark')}>
+                <DropdownMenuItem onClick={() => setTheme("dark")}>
                   <Moon className="mr-2 h-4 w-4" />
                   <span>Dark</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme('system')}>
+                <DropdownMenuItem onClick={() => setTheme("system")}>
                   <Settings className="mr-2 h-4 w-4" />
                   <span>System</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
@@ -373,27 +385,27 @@ export default function DashboardLayout({
 
       <div className="flex flex-1 overflow-hidden">
         {/* Mobile Navigation Menu */}
-        <div 
+        <div
           className={`md:hidden fixed inset-0 bg-slate-900/50 z-20 ${
-            isMobileMenuOpen ? 'block' : 'hidden'
+            isMobileMenuOpen ? "block" : "hidden"
           }`}
           onClick={toggleMobileMenu}
         ></div>
-        
-        <aside 
+
+        <aside
           className={`
             w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex-shrink-0
             md:static md:h-[calc(100vh-4rem)] md:block
             fixed top-16 bottom-0 z-20 transition-all duration-300 ease-in-out
-            ${isMobileMenuOpen ? 'left-0' : '-left-64'}
-            ${isSidebarOpen ? 'md:w-64' : 'md:w-20'}
+            ${isMobileMenuOpen ? "left-0" : "-left-64"}
+            ${isSidebarOpen ? "md:w-64" : "md:w-20"}
           `}
         >
           <div className="h-full overflow-y-auto py-4">
             <nav className="px-3 space-y-1">
               {navItems.map((item) => (
-                <Link 
-                  key={item.path} 
+                <Link
+                  key={item.path}
                   href={item.path}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
@@ -403,7 +415,9 @@ export default function DashboardLayout({
                   )}
                 >
                   {item.icon}
-                  <span className={isSidebarOpen ? "block" : "hidden md:hidden"}>
+                  <span
+                    className={isSidebarOpen ? "block" : "hidden md:hidden"}
+                  >
                     {item.name}
                   </span>
                 </Link>
@@ -413,9 +427,7 @@ export default function DashboardLayout({
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-6">
-          {children}
-        </main>
+        <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
       </div>
     </div>
   );

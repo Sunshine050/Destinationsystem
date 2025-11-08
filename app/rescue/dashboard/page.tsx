@@ -1,123 +1,123 @@
-"use client"
+"use client";
 
-import { useState } from 'react';
-import DashboardLayout from '@/components/dashboard/dashboard-layout';
+import { useState } from "react";
+import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
   AlertTriangle,
   MapPin,
   Clock,
   Users,
   Search,
-  Activity
-} from 'lucide-react';
-import CaseCard from '@/components/dashboard/case-card';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+  Activity,
+} from "lucide-react";
+import CaseCard from "@/components/dashboard/case-card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/app/shared/hooks/use-toast";
 
 // Emergency cases sample data - rescue team view
 const rescueCases = [
   {
-    id: 'ER-2305-003',
-    title: 'Drowning at Blue Beach Resort',
-    status: 'in-progress',
+    id: "ER-2305-003",
+    title: "Drowning at Blue Beach Resort",
+    status: "in-progress",
     severity: 4,
-    reportedAt: '2025-03-15T11:17:22',
-    patientName: 'Michael Johnson',
-    contactNumber: '062-345-6789',
-    emergencyType: 'Drowning',
+    reportedAt: "2025-03-15T11:17:22",
+    patientName: "Michael Johnson",
+    contactNumber: "062-345-6789",
+    emergencyType: "Drowning",
     location: {
-      address: 'Blue Beach Resort, Koh Samui',
+      address: "Blue Beach Resort, Koh Samui",
       coordinates: {
         lat: 9.5678,
         lng: 100.0123,
       },
     },
-    assignedTo: 'Rescue Team Alpha',
-    description: 'Tourist found unconscious in hotel swimming pool. CPR in progress by hotel staff.',
-    symptoms: ['Unconsciousness', 'Not Breathing', 'Cyanosis'],
+    assignedTo: "Rescue Team Alpha",
+    description:
+      "Tourist found unconscious in hotel swimming pool. CPR in progress by hotel staff.",
+    symptoms: ["Unconsciousness", "Not Breathing", "Cyanosis"],
   },
   {
-    id: 'ER-2305-006',
-    title: 'Road Accident on Sukhumvit 24',
-    status: 'in-progress',
+    id: "ER-2305-006",
+    title: "Road Accident on Sukhumvit 24",
+    status: "in-progress",
     severity: 3,
-    reportedAt: '2025-03-15T14:45:30',
-    patientName: 'Sarah Thompson',
-    contactNumber: '095-789-1234',
-    emergencyType: 'Traffic Accident',
+    reportedAt: "2025-03-15T14:45:30",
+    patientName: "Sarah Thompson",
+    contactNumber: "095-789-1234",
+    emergencyType: "Traffic Accident",
     location: {
-      address: 'Sukhumvit 24, near BTS Phrom Phong',
+      address: "Sukhumvit 24, near BTS Phrom Phong",
       coordinates: {
         lat: 13.7234,
         lng: 100.5678,
       },
     },
-    assignedTo: 'Rescue Team Bravo',
-    description: 'Motorcycle collision with car. Patient conscious but with leg injury and bleeding.',
-    symptoms: ['Leg Pain', 'Bleeding', 'Abrasions'],
+    assignedTo: "Rescue Team Bravo",
+    description:
+      "Motorcycle collision with car. Patient conscious but with leg injury and bleeding.",
+    symptoms: ["Leg Pain", "Bleeding", "Abrasions"],
   },
   {
-    id: 'ER-2305-007',
-    title: 'Heart Attack at Fitness Center',
-    status: 'completed',
+    id: "ER-2305-007",
+    title: "Heart Attack at Fitness Center",
+    status: "completed",
     severity: 4,
-    reportedAt: '2025-03-15T10:15:00',
-    patientName: 'Thanapat Srichai',
-    contactNumber: '081-456-7890',
-    emergencyType: 'Heart Attack',
+    reportedAt: "2025-03-15T10:15:00",
+    patientName: "Thanapat Srichai",
+    contactNumber: "081-456-7890",
+    emergencyType: "Heart Attack",
     location: {
-      address: 'FitForLife Gym, Sathorn Square Building',
+      address: "FitForLife Gym, Sathorn Square Building",
       coordinates: {
         lat: 13.7234,
         lng: 100.5288,
       },
     },
-    assignedTo: 'Rescue Team Charlie',
-    description: 'Middle-aged male collapsed during workout with chest pain and shortness of breath.',
-    symptoms: ['Chest Pain', 'Shortness of Breath', 'Sweating'],
+    assignedTo: "Rescue Team Charlie",
+    description:
+      "Middle-aged male collapsed during workout with chest pain and shortness of breath.",
+    symptoms: ["Chest Pain", "Shortness of Breath", "Sweating"],
   },
 ];
 
 // Define counts for dashboard stats
 const stats = {
-  inProgress: rescueCases.filter(c => c.status === 'in-progress').length,
-  completed: rescueCases.filter(c => c.status === 'completed').length,
-  critical: rescueCases.filter(c => c.severity === 4).length,
+  inProgress: rescueCases.filter((c) => c.status === "in-progress").length,
+  completed: rescueCases.filter((c) => c.status === "completed").length,
+  critical: rescueCases.filter((c) => c.severity === 4).length,
   total: rescueCases.length,
-}
+};
 
 export default function RescueTeamDashboard() {
   const [cases, setCases] = useState(rescueCases);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
   // Filter cases based on search query
-  const filteredCases = cases.filter(c => 
-    c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.emergencyType.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredCases = cases.filter(
+    (c) =>
+      c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.emergencyType.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleCompleteCase = (caseId: string) => {
-    setCases(prev => 
-      prev.map(c => 
-        c.id === caseId 
-          ? { ...c, status: 'completed' } 
-          : c
-      )
+    setCases((prev) =>
+      prev.map((c) => (c.id === caseId ? { ...c, status: "completed" } : c))
     );
-    
+
     toast({
       title: "Mission completed",
       description: `Case ${caseId} has been successfully completed.`,
@@ -125,14 +125,10 @@ export default function RescueTeamDashboard() {
   };
 
   const handleCancelCase = (caseId: string) => {
-    setCases(prev => 
-      prev.map(c => 
-        c.id === caseId 
-          ? { ...c, status: 'cancelled' } 
-          : c
-      )
+    setCases((prev) =>
+      prev.map((c) => (c.id === caseId ? { ...c, status: "cancelled" } : c))
     );
-    
+
     toast({
       title: "Mission cancelled",
       description: `Case ${caseId} has been cancelled.`,
@@ -171,7 +167,7 @@ export default function RescueTeamDashboard() {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -187,7 +183,7 @@ export default function RescueTeamDashboard() {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -203,7 +199,7 @@ export default function RescueTeamDashboard() {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -239,18 +235,30 @@ export default function RescueTeamDashboard() {
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1 bg-green-50 dark:bg-green-900/10 p-4 rounded-lg">
                 <h3 className="font-semibold mb-2">Current Status</h3>
-                <p className="text-green-600 dark:text-green-500 font-medium">Available for Missions</p>
-                <p className="text-sm text-slate-500 mt-1">Updated 5 minutes ago</p>
+                <p className="text-green-600 dark:text-green-500 font-medium">
+                  Available for Missions
+                </p>
+                <p className="text-sm text-slate-500 mt-1">
+                  Updated 5 minutes ago
+                </p>
               </div>
               <div className="flex-1 bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg">
                 <h3 className="font-semibold mb-2">Current Location</h3>
-                <p className="text-blue-600 dark:text-blue-500 font-medium">Sukhumvit 24, Bangkok</p>
-                <p className="text-sm text-slate-500 mt-1">3 km from hospital</p>
+                <p className="text-blue-600 dark:text-blue-500 font-medium">
+                  Sukhumvit 24, Bangkok
+                </p>
+                <p className="text-sm text-slate-500 mt-1">
+                  3 km from hospital
+                </p>
               </div>
               <div className="flex-1 bg-purple-50 dark:bg-purple-900/10 p-4 rounded-lg">
                 <h3 className="font-semibold mb-2">Team Members</h3>
-                <p className="text-purple-600 dark:text-purple-500 font-medium">All members on duty</p>
-                <p className="text-sm text-slate-500 mt-1">5/5 team members available</p>
+                <p className="text-purple-600 dark:text-purple-500 font-medium">
+                  All members on duty
+                </p>
+                <p className="text-sm text-slate-500 mt-1">
+                  5/5 team members available
+                </p>
               </div>
             </div>
           </CardContent>
@@ -282,24 +290,34 @@ export default function RescueTeamDashboard() {
                 Completed <Badge className="ml-1">{stats.completed}</Badge>
               </TabsTrigger>
             </TabsList>
-            
-            {['all', 'in-progress', 'completed'].map((tabValue) => (
-              <TabsContent key={tabValue} value={tabValue} className="space-y-4">
+
+            {["all", "in-progress", "completed"].map((tabValue) => (
+              <TabsContent
+                key={tabValue}
+                value={tabValue}
+                className="space-y-4"
+              >
                 {filteredCases.length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-slate-500 dark:text-slate-400">No missions found</p>
+                    <p className="text-slate-500 dark:text-slate-400">
+                      No missions found
+                    </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {filteredCases
-                      .filter(c => tabValue === 'all' || c.status === tabValue)
+                      .filter(
+                        (c) => tabValue === "all" || c.status === tabValue
+                      )
                       .map((emergencyCase) => (
                         <CaseCard
                           key={emergencyCase.id}
                           {...emergencyCase}
                           severity={emergencyCase.severity as 1 | 2 | 3 | 4}
                           status={emergencyCase.status as any}
-                          onComplete={() => handleCompleteCase(emergencyCase.id)}
+                          onComplete={() =>
+                            handleCompleteCase(emergencyCase.id)
+                          }
                           onCancel={() => handleCancelCase(emergencyCase.id)}
                           role="rescue"
                         />

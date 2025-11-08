@@ -1,21 +1,21 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { 
-  PhoneCall, 
-  Hospital, 
-  Ambulance, 
-  Lock, 
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  PhoneCall,
+  Hospital,
+  Ambulance,
+  Lock,
   Mail,
   User,
   ArrowRight,
   Loader2,
-  Info
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+  Info,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -23,20 +23,12 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
-import {
-  Alert,
-  AlertDescription,
-} from "@/components/ui/alert";
-import { useToast } from '@/hooks/use-toast';
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/app/shared/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
-import axios from 'axios';
+import axios from "axios";
 
 interface FormData {
   email: string;
@@ -47,31 +39,31 @@ interface FormData {
 }
 
 const roleMapping = {
-  '1669': 'EMERGENCY_CENTER',
-  'hospital': 'HOSPITAL',
-  'rescue': 'RESCUE_TEAM',
+  "1669": "EMERGENCY_CENTER",
+  hospital: "HOSPITAL",
+  rescue: "RESCUE_TEAM",
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export default function AuthPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [defaultTab, setDefaultTab] = useState('1669');
+  const [defaultTab, setDefaultTab] = useState("1669");
   const [isRegister, setIsRegister] = useState(false);
   const [formData, setFormData] = useState<FormData>({
-    email: '',
-    password: '',
-    firstName: '',
-    lastName: '',
-    phone: '',
+    email: "",
+    password: "",
+    firstName: "",
+    lastName: "",
+    phone: "",
   });
 
   useEffect(() => {
-    const role = searchParams?.get('role');
-    if (role && ['1669', 'hospital', 'rescue'].includes(role)) {
+    const role = searchParams?.get("role");
+    if (role && ["1669", "hospital", "rescue"].includes(role)) {
       setDefaultTab(role);
     }
   }, [searchParams]);
@@ -85,8 +77,8 @@ export default function AuthPage() {
     setIsLoading(true);
 
     try {
-      console.log('Sending login request to:', `${API_BASE_URL}/auth/login`);
-      console.log('Login request body:', {
+      console.log("Sending login request to:", `${API_BASE_URL}/auth/login`);
+      console.log("Login request body:", {
         email: formData.email,
         password: formData.password,
       });
@@ -96,30 +88,31 @@ export default function AuthPage() {
         password: formData.password,
       });
 
-      console.log('Login response:', response.data);
+      console.log("Login response:", response.data);
 
       const { access_token, refresh_token } = response.data;
-      localStorage.setItem('access_token', access_token);
-      localStorage.setItem('refresh_token', refresh_token);
+      localStorage.setItem("access_token", access_token);
+      localStorage.setItem("refresh_token", refresh_token);
 
       toast({
         title: "ล็อกอินสำเร็จ",
         description: `ยินดีต้อนรับเข้าสู่ระบบในฐานะ ${role}`,
       });
 
-      if (role === '1669') {
-        router.push('/1669/dashboard');
-      } else if (role === 'hospital') {
-        router.push('/hospital/dashboard');
-      } else if (role === 'rescue') {
-        router.push('/rescue/dashboard');
+      if (role === "1669") {
+        router.push("/1669/dashboard");
+      } else if (role === "hospital") {
+        router.push("/hospital/dashboard");
+      } else if (role === "rescue") {
+        router.push("/rescue/dashboard");
       }
     } catch (error: any) {
-      console.error('Login error:', error.response?.data || error.message);
+      console.error("Login error:", error.response?.data || error.message);
       toast({
         variant: "destructive",
         title: "ล็อกอินไม่สำเร็จ",
-        description: error.response?.data?.message || "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
+        description:
+          error.response?.data?.message || "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
       });
     } finally {
       setIsLoading(false);
@@ -131,8 +124,11 @@ export default function AuthPage() {
     setIsLoading(true);
 
     try {
-      console.log('Sending register request to:', `${API_BASE_URL}/auth/register`);
-      console.log('Register request body:', {
+      console.log(
+        "Sending register request to:",
+        `${API_BASE_URL}/auth/register`
+      );
+      console.log("Register request body:", {
         email: formData.email,
         password: formData.password,
         firstName: formData.firstName,
@@ -144,13 +140,13 @@ export default function AuthPage() {
       const response = await axios.post(`${API_BASE_URL}/auth/register`, {
         email: formData.email,
         password: formData.password,
-        firstName: formData.firstName || '',
-        lastName: formData.lastName || '',
+        firstName: formData.firstName || "",
+        lastName: formData.lastName || "",
         phone: formData.phone || undefined,
         role: roleMapping[role as keyof typeof roleMapping],
       });
 
-      console.log('Register response:', response.data);
+      console.log("Register response:", response.data);
 
       toast({
         title: "ลงทะเบียนสำเร็จ",
@@ -160,17 +156,18 @@ export default function AuthPage() {
       setIsRegister(false);
       setFormData({
         email: formData.email,
-        password: '',
-        firstName: '',
-        lastName: '',
-        phone: '',
+        password: "",
+        firstName: "",
+        lastName: "",
+        phone: "",
       });
     } catch (error: any) {
-      console.error('Register error:', error.response?.data || error.message);
+      console.error("Register error:", error.response?.data || error.message);
       toast({
         variant: "destructive",
         title: "ลงทะเบียนไม่สำเร็จ",
-        description: error.response?.data?.message || "เกิดข้อผิดพลาดในการลงทะเบียน",
+        description:
+          error.response?.data?.message || "เกิดข้อผิดพลาดในการลงทะเบียน",
       });
     } finally {
       setIsLoading(false);
@@ -180,11 +177,11 @@ export default function AuthPage() {
   const handleTabChange = (value: string) => {
     setDefaultTab(value);
     setFormData({
-      email: '',
-      password: '',
-      firstName: '',
-      lastName: '',
-      phone: '',
+      email: "",
+      password: "",
+      firstName: "",
+      lastName: "",
+      phone: "",
     });
   };
 
@@ -198,8 +195,8 @@ export default function AuthPage() {
           </p>
         </div>
 
-        <Tabs 
-          defaultValue={defaultTab} 
+        <Tabs
+          defaultValue={defaultTab}
           className="w-full"
           onValueChange={handleTabChange}
         >
@@ -219,8 +216,8 @@ export default function AuthPage() {
           </TabsList>
 
           <TabsContent value="1669">
-            <AuthCard 
-              title="ศูนย์ตอบสนอง 1669" 
+            <AuthCard
+              title="ศูนย์ตอบสนอง 1669"
               description="เข้าถึงแดชบอร์ดศูนย์ตอบสนองฉุกเฉิน"
               icon={<PhoneCall className="h-5 w-5 text-red-600" />}
               role="1669"
@@ -235,8 +232,8 @@ export default function AuthPage() {
           </TabsContent>
 
           <TabsContent value="hospital">
-            <AuthCard 
-              title="เจ้าหน้าที่โรงพยาบาล" 
+            <AuthCard
+              title="เจ้าหน้าที่โรงพยาบาล"
               description="เข้าถึงแดชบอร์ดการจัดการโรงพยาบาล"
               icon={<Hospital className="h-5 w-5 text-blue-600" />}
               role="hospital"
@@ -251,8 +248,8 @@ export default function AuthPage() {
           </TabsContent>
 
           <TabsContent value="rescue">
-            <AuthCard 
-              title="ทีมกู้ภัย" 
+            <AuthCard
+              title="ทีมกู้ภัย"
               description="เข้าถึงแดชบอร์ดทีมกู้ภัย"
               icon={<Ambulance className="h-5 w-5 text-green-600" />}
               role="rescue"
@@ -285,10 +282,10 @@ interface AuthCardProps {
   isLoading: boolean;
 }
 
-function AuthCard({ 
-  title, 
-  description, 
-  icon, 
+function AuthCard({
+  title,
+  description,
+  icon,
   role,
   formData,
   setFormData,
@@ -296,10 +293,10 @@ function AuthCard({
   setIsRegister,
   onLogin,
   onRegister,
-  isLoading
+  isLoading,
 }: AuthCardProps) {
   const handleSubmit = (e: React.FormEvent) => {
-    console.log('Form submitted, isRegister:', isRegister, 'role:', role);
+    console.log("Form submitted, isRegister:", isRegister, "role:", role);
     if (isRegister) {
       onRegister(e, role);
     } else {
@@ -332,7 +329,9 @@ function AuthCard({
                     className="pl-10"
                     disabled={isLoading}
                     value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, firstName: e.target.value })
+                    }
                     autoComplete="given-name" // ระบุว่าเป็นชื่อ
                   />
                 </div>
@@ -349,7 +348,9 @@ function AuthCard({
                     className="pl-10"
                     disabled={isLoading}
                     value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, lastName: e.target.value })
+                    }
                     autoComplete="family-name" // ระบุว่าเป็นนามสกุล
                   />
                 </div>
@@ -365,7 +366,9 @@ function AuthCard({
                     className="pl-10"
                     disabled={isLoading}
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phone: e.target.value })
+                    }
                     autoComplete="tel" // ระบุว่าเป็นเบอร์โทร
                   />
                 </div>
@@ -385,7 +388,9 @@ function AuthCard({
                 className="pl-10"
                 disabled={isLoading}
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
                 autoComplete="email" // ระบุว่าเป็นอีเมล
               />
             </div>
@@ -394,8 +399,8 @@ function AuthCard({
             <div className="flex items-center justify-between">
               <Label htmlFor="password">รหัสผ่าน</Label>
               {!isRegister && (
-                <a 
-                  href="#" 
+                <a
+                  href="#"
                   className="text-xs text-blue-600 hover:underline dark:text-blue-400"
                 >
                   ลืมรหัสผ่าน?
@@ -413,26 +418,25 @@ function AuthCard({
                 className="pl-10"
                 disabled={isLoading}
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
                 autoComplete={isRegister ? "new-password" : "current-password"} // ใช้ new-password สำหรับลงทะเบียน
               />
             </div>
           </div>
         </CardContent>
         <CardFooter className="flex-col space-y-4">
-          <Button 
-            type="submit" 
-            className="w-full"
-            disabled={isLoading}
-          >
+          <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isRegister ? 'กำลังลงทะเบียน...' : 'กำลังล็อกอิน...'}
+                {isRegister ? "กำลังลงทะเบียน..." : "กำลังล็อกอิน..."}
               </>
             ) : (
               <>
-                {isRegister ? 'ลงทะเบียน' : 'ล็อกอิน'} <ArrowRight className="ml-2 h-4 w-4" />
+                {isRegister ? "ลงทะเบียน" : "ล็อกอิน"}{" "}
+                <ArrowRight className="ml-2 h-4 w-4" />
               </>
             )}
           </Button>
@@ -442,7 +446,7 @@ function AuthCard({
             onClick={() => setIsRegister(!isRegister)}
             disabled={isLoading}
           >
-            {isRegister ? 'มีบัญชีแล้ว? ล็อกอิน' : 'ไม่มีบัญชี? ลงทะเบียน'}
+            {isRegister ? "มีบัญชีแล้ว? ล็อกอิน" : "ไม่มีบัญชี? ลงทะเบียน"}
           </Button>
         </CardFooter>
       </form>

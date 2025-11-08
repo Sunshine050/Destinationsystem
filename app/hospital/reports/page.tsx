@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/app/shared/hooks/use-toast";
 
 // Sample hospital report data
 const reports = [
@@ -25,8 +25,8 @@ const reports = [
       totalPatients: 156,
       avgWaitTime: 22,
       criticalCases: 34,
-      bedOccupancy: 85
-    }
+      bedOccupancy: 85,
+    },
   },
   {
     id: 2,
@@ -37,8 +37,8 @@ const reports = [
       bedUtilization: 78,
       staffUtilization: 92,
       equipmentUsage: 65,
-      supplies: 88
-    }
+      supplies: 88,
+    },
   },
   {
     id: 3,
@@ -49,9 +49,9 @@ const reports = [
       admissions: 89,
       discharges: 76,
       transfers: 12,
-      satisfaction: 94
-    }
-  }
+      satisfaction: 94,
+    },
+  },
 ];
 
 export default function HospitalReportsPage() {
@@ -67,7 +67,9 @@ export default function HospitalReportsPage() {
       setIsGenerating(false);
       toast({
         title: "Report Generated",
-        description: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} report for the last ${timePeriod} has been generated.`,
+        description: `${
+          reportType.charAt(0).toUpperCase() + reportType.slice(1)
+        } report for the last ${timePeriod} has been generated.`,
       });
     }, 2000);
   };
@@ -79,9 +81,10 @@ export default function HospitalReportsPage() {
     });
   };
 
-  const filteredReports = reportType === "all" 
-    ? reports 
-    : reports.filter(r => r.type === reportType);
+  const filteredReports =
+    reportType === "all"
+      ? reports
+      : reports.filter((r) => r.type === reportType);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -183,27 +186,36 @@ export default function HospitalReportsPage() {
                 <span className="font-medium">96%</span>
               </div>
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-green-500 rounded-full" style={{ width: "96%" }} />
+                <div
+                  className="h-full bg-green-500 rounded-full"
+                  style={{ width: "96%" }}
+                />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Critical Care Success Rate</span>
                 <span className="font-medium">92%</span>
               </div>
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500 rounded-full" style={{ width: "92%" }} />
+                <div
+                  className="h-full bg-blue-500 rounded-full"
+                  style={{ width: "92%" }}
+                />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Resource Optimization</span>
                 <span className="font-medium">88%</span>
               </div>
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-purple-500 rounded-full" style={{ width: "88%" }} />
+                <div
+                  className="h-full bg-purple-500 rounded-full"
+                  style={{ width: "88%" }}
+                />
               </div>
             </div>
           </div>
@@ -228,7 +240,11 @@ export default function HospitalReportsPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleDownload(report.id)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDownload(report.id)}
+                  >
                     <Download className="mr-2 h-4 w-4" />
                     Download
                   </Button>

@@ -4,7 +4,13 @@ import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +32,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { 
+import {
   Bell,
   Volume2,
   Phone,
@@ -40,9 +46,9 @@ import {
   MessageSquare,
   Bed,
   Building2,
-  Users
-} from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+  Users,
+} from "lucide-react";
+import { useToast } from "@/app/shared/hooks/use-toast";
 
 const notificationSettingsSchema = z.object({
   emergencyAlerts: z.boolean(),
@@ -115,9 +121,9 @@ export default function HospitalSettings() {
 
   const onSubmit = async (data: any) => {
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     setIsLoading(false);
-    
+
     toast({
       title: "Settings updated",
       description: "Your settings have been saved successfully.",
@@ -147,7 +153,10 @@ export default function HospitalSettings() {
           </CardHeader>
           <CardContent>
             <Form {...hospitalForm}>
-              <form onSubmit={hospitalForm.handleSubmit(onSubmit)} className="space-y-4">
+              <form
+                onSubmit={hospitalForm.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
                 <div className="grid gap-4">
                   <FormField
                     control={hospitalForm.control}
@@ -280,7 +289,10 @@ export default function HospitalSettings() {
           </CardHeader>
           <CardContent>
             <Form {...notificationForm}>
-              <form onSubmit={notificationForm.handleSubmit(onSubmit)} className="space-y-4">
+              <form
+                onSubmit={notificationForm.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
                 <div className="grid gap-4">
                   <FormField
                     control={notificationForm.control}
@@ -288,7 +300,9 @@ export default function HospitalSettings() {
                     render={({ field }) => (
                       <FormItem className="flex items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
-                          <FormLabel className="text-base">Emergency Alerts</FormLabel>
+                          <FormLabel className="text-base">
+                            Emergency Alerts
+                          </FormLabel>
                           <FormDescription>
                             Receive critical emergency notifications
                           </FormDescription>
@@ -308,7 +322,9 @@ export default function HospitalSettings() {
                     render={({ field }) => (
                       <FormItem className="flex items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
-                          <FormLabel className="text-base">Status Updates</FormLabel>
+                          <FormLabel className="text-base">
+                            Status Updates
+                          </FormLabel>
                           <FormDescription>
                             Get updates on case status changes
                           </FormDescription>
@@ -328,7 +344,9 @@ export default function HospitalSettings() {
                     render={({ field }) => (
                       <FormItem className="flex items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
-                          <FormLabel className="text-base">Sound Alerts</FormLabel>
+                          <FormLabel className="text-base">
+                            Sound Alerts
+                          </FormLabel>
                           <FormDescription>
                             Play sound for important notifications
                           </FormDescription>
@@ -358,13 +376,14 @@ export default function HospitalSettings() {
               <Shield className="h-5 w-5" />
               System Settings
             </CardTitle>
-            <CardDescription>
-              Configure system-wide preferences
-            </CardDescription>
+            <CardDescription>Configure system-wide preferences</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...systemForm}>
-              <form onSubmit={systemForm.handleSubmit(onSubmit)} className="space-y-4">
+              <form
+                onSubmit={systemForm.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
                 <div className="grid gap-4">
                   <FormField
                     control={systemForm.control}
@@ -372,7 +391,10 @@ export default function HospitalSettings() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>System Language</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select language" />
@@ -386,22 +408,29 @@ export default function HospitalSettings() {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={systemForm.control}
                     name="timeZone"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Time Zone</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select time zone" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="Asia/Bangkok">Bangkok (GMT+7)</SelectItem>
-                            <SelectItem value="Asia/Singapore">Singapore (GMT+8)</SelectItem>
+                            <SelectItem value="Asia/Bangkok">
+                              Bangkok (GMT+7)
+                            </SelectItem>
+                            <SelectItem value="Asia/Singapore">
+                              Singapore (GMT+8)
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </FormItem>
@@ -414,16 +443,25 @@ export default function HospitalSettings() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Date Format</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select date format" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
-                            <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
-                            <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
+                            <SelectItem value="DD/MM/YYYY">
+                              DD/MM/YYYY
+                            </SelectItem>
+                            <SelectItem value="MM/DD/YYYY">
+                              MM/DD/YYYY
+                            </SelectItem>
+                            <SelectItem value="YYYY-MM-DD">
+                              YYYY-MM-DD
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </FormItem>
@@ -436,7 +474,10 @@ export default function HospitalSettings() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Map Provider</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select map provider" />
@@ -458,7 +499,10 @@ export default function HospitalSettings() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Auto-refresh Interval (seconds)</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select refresh interval" />

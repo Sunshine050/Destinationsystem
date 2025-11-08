@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   AlertTriangle,
   Clock,
@@ -29,6 +30,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/app/shared/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 export interface CaseCardProps {
@@ -52,6 +61,14 @@ export interface CaseCardProps {
   notes?: string;
   symptoms?: string[] | null;
   role: "emergency-center" | "hospital" | "rescue";
+  setCases: React.Dispatch<React.SetStateAction<any[]>>;
+  fetchHospitals: () => Promise<void>;
+}
+
+interface Hospital {
+  id: string;
+  name: string;
+  availableBeds: number | null;
 }
 
 export default function CaseCard({
@@ -69,8 +86,166 @@ export default function CaseCard({
   notes,
   symptoms = [],
   role,
+  setCases,
+  fetchHospitals,
 }: CaseCardProps) {
-  const normalizedStatus = status.toLowerCase() as "pending" | "assigned" | "in-progress" | "completed" | "cancelled";
+  const { toast } = useToast();
+  const [selectedHospital, setSelectedHospital] = useState<string>("");
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+
+  const normalizedStatus = status.toLowerCase() as
+    | "pending"
+    | "assigned"
+    | "in-progress"
+    | "completed"
+    | "cancelled";
+
+  // ดึงข้อมูลโรงพยาบาล
+  useEffect(() => {
+    const loadHospitals = async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        if (!token) throw new Error("No access token");
+
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/hospitals`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        if (!response.ok)
+          throw new Error(`Failed to fetch hospitals: ${response.statusText}`);
+        const data = await response.json();
+        setHospitals(
+          data.map((h: any) => ({
+            id: h.id,
+            name: h.name || "โรงพยาบาลไม่มีชื่อ",
+            availableBeds: h.availableBeds || 0,
+          }))
+        );
+      } catch (error) {
+        console.error("Error fetching hospitals:", error);
+        toast({
+          title: "ข้อผิดพลาด",
+          description: "ไม่สามารถดึงข้อมูลโรงพยาบาลได้",
+          variant: "destructive",
+        });
+      }
+    };
+    loadHospitals();
+  }, [toast]);
+
+  // ฟังก์ชันมอบหมายเคส
+  const handleAssign = async () => {
+    if (!selectedHospital) {
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "กรุณาเลือกโรงพยาบาล",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      const token = localStorage.getItem("access_token");
+      if (!token) throw new Error("No access token");
+
+      const hospital = hospitals.find((h) => h.id === selectedHospital);
+      if (!hospital) throw new Error("Hospital not found");
+      if (hospital.availableBeds === null || hospital.availableBeds <= 0) {
+        throw new Error("No available beds in the selected hospital");
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/sos/${id}/assign`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ hospitalId: selectedHospital }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to assign case: ${response.statusText} (${response.status}) - ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+      toast({
+        title: "มอบหมายเคสสำเร็จ",
+        description: `เคส ${id.slice(-8)} ถูกมอบหมายให้ ${hospital.name}`,
+      });
+
+      // รีเฟรชข้อมูลเคสและโรงพยาบาล
+      const fetchData = async () => {
+        try {
+          const emergenciesRes = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/dashboard/active-emergencies`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+          if (!emergenciesRes.ok)
+            throw new Error(
+              `Failed to fetch emergencies: ${emergenciesRes.statusText}`
+            );
+          const emergenciesData = await emergenciesRes.json();
+          const updatedCases = emergenciesData.map((item: any) => ({
+            id: item.id || "unknown-id",
+            description:
+              (item.description || "ไม่มีรายละเอียด").slice(0, 50) + "...",
+            descriptionFull: item.description || "ไม่มีรายละเอียด",
+            status: item.status?.toLowerCase() || "pending",
+            grade: (
+              item.medicalInfo?.grade ||
+              item.grade ||
+              "NON_URGENT"
+            ).toUpperCase(),
+            reportedAt: item.createdAt || new Date().toISOString(),
+            patientName:
+              `${item.patient?.firstName || ""} ${
+                item.patient?.lastName || ""
+              }`.trim() || "ไม่ทราบชื่อ",
+            contactNumber: item.patient?.phone || "N/A",
+            emergencyType: item.type || "OTHER",
+            location: {
+              address: item.location || "ไม่ทราบสถานที่",
+              coordinates: {
+                lat: item.latitude || 0,
+                lng: item.longitude || 0,
+              },
+            },
+            assignedTo: item.responses?.[0]?.organization?.name || undefined,
+            symptoms: Array.isArray(item.medicalInfo?.symptoms)
+              ? item.medicalInfo.symptoms
+              : [],
+            notes: item.notes || undefined,
+          }));
+          setCases(updatedCases);
+          await fetchHospitals(); // อัปเดตข้อมูลโรงพยาบาล
+        } catch (error) {
+          console.error("Error refreshing data:", error);
+          toast({
+            title: "ข้อผิดพลาด",
+            description: "ไม่สามารถรีเฟรชข้อมูลได้",
+            variant: "destructive",
+          });
+        }
+      };
+      await fetchData();
+    } catch (error: any) {
+      console.error("Error assigning case:", error);
+      toast({
+        title: "ข้อผิดพลาด",
+        description: `ไม่สามารถมอบหมายเคสได้: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -122,7 +297,7 @@ export default function CaseCard({
   const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
   const reportedDate = new Date(reportedAt);
   const formattedDate = !isNaN(reportedDate.getTime())
-    ? reportedDate.toLocaleString()
+    ? reportedDate.toLocaleString("th-TH")
     : "Unknown date";
 
   return (
@@ -132,16 +307,17 @@ export default function CaseCard({
           <div>
             <CardTitle className="flex items-center gap-2 mb-1">
               <AlertTriangle
-                className={cn("h-4 w-4", grade === "CRITICAL" && "text-red-500")}
+                className={cn(
+                  "h-4 w-4",
+                  grade === "CRITICAL" && "text-red-500"
+                )}
               />
               {description}
             </CardTitle>
             <CardDescription>Case ID: {id}</CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Badge className={getGradeColor(grade)}>
-              {grade || "UNKNOWN"}
-            </Badge>
+            <Badge className={getGradeColor(grade)}>{grade || "UNKNOWN"}</Badge>
             <Badge className={getStatusColor(normalizedStatus)}>
               {getStatusLabel(normalizedStatus)}
             </Badge>
@@ -167,6 +343,39 @@ export default function CaseCard({
             <span>{location.address}</span>
           </div>
         </div>
+        {role === "emergency-center" && normalizedStatus === "pending" && (
+          <div className="flex gap-2 items-center mt-4">
+            <Select
+              value={selectedHospital}
+              onValueChange={setSelectedHospital}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="เลือกโรงพยาบาล" />
+              </SelectTrigger>
+              <SelectContent>
+                {hospitals.map((hospital) => (
+                  <SelectItem
+                    key={hospital.id}
+                    value={hospital.id}
+                    disabled={
+                      hospital.availableBeds === null ||
+                      hospital.availableBeds <= 0
+                    }
+                  >
+                    {hospital.name} ({hospital.availableBeds || 0} เตียง)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              onClick={handleAssign}
+              disabled={!selectedHospital}
+            >
+              มอบหมาย
+            </Button>
+          </div>
+        )}
       </CardContent>
       <CardFooter className="flex justify-between pt-0">
         <Dialog>
@@ -180,7 +389,10 @@ export default function CaseCard({
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <AlertTriangle
-                  className={cn("h-5 w-5", grade === "CRITICAL" && "text-red-500")}
+                  className={cn(
+                    "h-5 w-5",
+                    grade === "CRITICAL" && "text-red-500"
+                  )}
                 />
                 {descriptionFull}
               </DialogTitle>
@@ -273,7 +485,9 @@ export default function CaseCard({
                 <>
                   <Separator />
                   <div className="space-y-2">
-                    <p className="text-sm font-medium">Assignment Information</p>
+                    <p className="text-sm font-medium">
+                      Assignment Information
+                    </p>
                     <div className="text-sm">
                       <strong>Assigned To:</strong> {assignedTo}
                     </div>
@@ -283,7 +497,7 @@ export default function CaseCard({
             </div>
 
             <DialogFooter className="flex justify-end sm:justify-end">
-              {/* ปุ่มแอคชั่นถูกลบทั้งหมด */}
+              {/* เพิ่มปุ่มมอบหมายใน Dialog ถ้าต้องการ */}
             </DialogFooter>
           </DialogContent>
         </Dialog>
