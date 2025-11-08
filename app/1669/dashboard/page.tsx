@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import DashboardLayout from "@/components/dashboard/dashboard-layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import DashboardLayout from "@components/dashboard/dashboard-layout";
+import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
+import { Button } from "@components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/ui/tabs";
 import {
   AlertTriangle,
   Clock,
@@ -15,10 +15,10 @@ import {
   BarChart3,
   Calendar,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/app/shared/hooks/use-toast";
-import { webSocketClient } from "@/lib/websocket";
+import { Input } from "@components/ui/input";
+import { Badge } from "@components/ui/badge";
+import { useToast } from "@/shared/hooks/use-toast";
+import { webSocketClient } from "@lib/websocket";
 import {
   LineChart,
   Line,
@@ -37,7 +37,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@components/ui/dialog";
 
 // Interfaces
 interface EmergencyRequestFromApi {

@@ -2,17 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/dashboard/dashboard-layout";
+import DashboardLayout from "@components/dashboard/dashboard-layout";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+} from "@components/ui/card";
+import { Button } from "@components/ui/button";
+import { Input } from "@components/ui/input";
+import { Badge } from "@components/ui/badge";
 import {
   Building2,
   Phone,
@@ -25,9 +25,9 @@ import {
   Mail,
   Clock,
 } from "lucide-react";
-import { useToast } from "@/app/shared/hooks/use-toast";
+import { useToast } from "@/shared/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { webSocketClient } from "@/lib/websocket";
+import { webSocketClient } from "@lib/websocket";
 
 interface Hospital {
   id: string;

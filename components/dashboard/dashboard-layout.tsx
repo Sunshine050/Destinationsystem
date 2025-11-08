@@ -24,7 +24,7 @@ import {
   Check,
   Clock,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from '@components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,18 +32,18 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@components/ui/sheet";
+import { ScrollArea } from "@components/ui/scroll-area";
 import { useTheme } from "next-themes";
-import { cn } from "@/lib/utils";
-import { useToast } from "@/app/shared/hooks/use-toast";
+import { cn } from "@lib/utils";
+import { useToast } from "@/shared/hooks/use-toast";
 
 interface Notification {
   id: string;
