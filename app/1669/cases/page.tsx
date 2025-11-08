@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import {
-  Plus,
   Search,
   Filter,
   MapPin,
   ChevronDown,
   AlertTriangle,
+  User,
+  Phone,
+  Map,
+  Clock,
 } from "lucide-react";
-import CaseCard from "@/components/dashboard/case-card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -29,64 +31,57 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/app/shared/hooks/use-toast";
 import { webSocketClient } from "@/lib/websocket";
-import dynamic from 'next/dynamic';
+import dynamic from "next/dynamic";
+import L from "leaflet";
+import { useMap } from "react-leaflet";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
-// Dynamically import Leaflet components with SSR disabled
+// โหลด Leaflet แบบ dynamic เพื่อป้องกัน SSR
 const MapContainer = dynamic(
-  () => import('react-leaflet').then((mod) => ({ default: mod.MapContainer })),
+  () => import("react-leaflet").then((mod) => ({ default: mod.MapContainer })),
   { ssr: false }
 );
 const TileLayer = dynamic(
-  () => import('react-leaflet').then((mod) => ({ default: mod.TileLayer })),
+  () => import("react-leaflet").then((mod) => ({ default: mod.TileLayer })),
   { ssr: false }
 );
 const Marker = dynamic(
-  () => import('react-leaflet').then((mod) => ({ default: mod.Marker })),
+  () => import("react-leaflet").then((mod) => ({ default: mod.Marker })),
   { ssr: false }
 );
 const Popup = dynamic(
-  () => import('react-leaflet').then((mod) => ({ default: mod.Popup })),
+  () => import("react-leaflet").then((mod) => ({ default: mod.Popup })),
   { ssr: false }
 );
 const FeatureGroup = dynamic(
-  () => import('react-leaflet').then((mod) => ({ default: mod.FeatureGroup })),
+  () => import("react-leaflet").then((mod) => ({ default: mod.FeatureGroup })),
   { ssr: false }
 );
 
 import "leaflet/dist/leaflet.css";
-import L from "leaflet";
-import { useMap } from "react-leaflet";
 
-// Fix default markers for Leaflet (SSR issue)
-if (typeof window !== 'undefined') {
+// แก้ไขไอคอนเริ่มต้นของ Leaflet
+if (typeof window !== "undefined") {
   delete (L.Icon.Default.prototype as any)._getIconUrl;
   L.Icon.Default.mergeOptions({
-    iconRetinaUrl: '/leaflet/marker-icon-2x.png',
-    iconUrl: '/leaflet/marker-icon.png',
-    shadowUrl: '/leaflet/marker-shadow.png',
+    iconRetinaUrl: "/leaflet/marker-icon-2x.png",
+    iconUrl: "/leaflet/marker-icon.png",
+    shadowUrl: "/leaflet/marker-shadow.png",
   });
 }
 
-// ตั้งค่า icon สำหรับ Marker ใหม่: ใช้ divIcon พร้อม pulsing animation
+// สร้างไอคอน Marker พร้อมแอนิเมชัน
 const getMarkerIcon = (severity: number) => {
   const colors: Record<number, string> = {
-    1: "#10b981", // green
-    2: "#f59e0b", // yellow/orange
-    3: "#f97316", // orange
-    4: "#ef4444", // red
+    1: "#10b981", // เขียว
+    2: "#f59e0b", // เหลือง/ส้ม
+    3: "#f97316", // ส้ม
+    4: "#ef4444", // แดง
   };
-  const color = colors[severity] || "#3b82f6"; // default blue
+  const color = colors[severity] || "#3b82f6"; // ค่าเริ่มต้นสีน้ำเงิน
 
   const html = `
     <div class="custom-marker" style="--marker-color: ${color};">
@@ -111,19 +106,19 @@ interface EmergencyCase {
   descriptionFull: string;
   status: "pending" | "assigned" | "in-progress" | "completed" | "cancelled";
   severity: 1 | 2 | 3 | 4;
+  grade: "CRITICAL" | "URGENT" | "NON_URGENT" | "UNKNOWN";
   reportedAt: string;
   patientName: string;
   contactNumber: string;
   emergencyType: string;
-  location: {
-    address: string;
-    coordinates: {
-      lat: number;
-      lng: number;
-    };
-  };
+  location: { address: string; coordinates: { lat: number; lng: number } };
   assignedTo?: string;
   symptoms: string[];
+}
+
+interface Hospital {
+  id: string;
+  name: string;
 }
 
 interface FilterState {
@@ -136,38 +131,83 @@ interface MapLocation {
   id: string;
   title: string;
   severity: number;
-  coordinates: [number, number];  // Leaflet uses [lat, lng]
+  coordinates: [number, number];
   address: string;
   description: string;
   patientName: string;
   status: EmergencyCase["status"];
 }
 
-// Component สำหรับจัดการการ fit bounds ของแผนที่
-const MapView = ({ 
-  mapLocations, 
-  onLocationSelect 
-}: { 
-  mapLocations: MapLocation[]; 
+// คอมโพเนนต์ MapView พร้อมการจัดการ cleanup และ error handling
+const MapView = ({
+  mapLocations,
+  onLocationSelect,
+}: {
+  mapLocations: MapLocation[];
   onLocationSelect: (loc: MapLocation | null) => void;
 }) => {
   const map = useMap();
+  const mapRef = useRef<L.Map | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (mapLocations.length === 0) return;
+    try {
+      mapRef.current = map;
+      map.invalidateSize();
 
-    if (mapLocations.length === 1) {
-      // ถ้ามีเคสเดียว ให้ zoom ไปที่ตำแหน่งนั้น
-      map.setView(mapLocations[0].coordinates, 13);
-    } else {
-      // ถ้ามีหลายเคส ให้ fit bounds ครอบคลุมทุกตำแหน่ง
-      const bounds = mapLocations.reduce((bounds, loc) => {
-        return bounds.extend(L.latLng(loc.coordinates));
-      }, L.latLngBounds([]));
+      if (mapLocations.length === 0) {
+        toast({
+          title: "ไม่มีข้อมูล",
+          description: "ไม่มีเคสฉุกเฉินที่มีพิกัดถูกต้อง",
+        });
+        return;
+      }
 
-      map.fitBounds(bounds, { padding: [50, 50] });
+      const validLocations = mapLocations.filter(
+        (loc) =>
+          loc.coordinates[0] !== 0 &&
+          loc.coordinates[1] !== 0 &&
+          !isNaN(loc.coordinates[0]) &&
+          !isNaN(loc.coordinates[1])
+      );
+
+      if (validLocations.length === 0) {
+        toast({
+          title: "ข้อผิดพลาด",
+          description: "ไม่มีพิกัดที่ถูกต้องสำหรับแสดงบนแผนที่",
+        });
+        return;
+      }
+
+      if (validLocations.length === 1) {
+        map.setView(validLocations[0].coordinates, 13);
+      } else {
+        const bounds = validLocations.reduce(
+          (bounds, loc) => bounds.extend(L.latLng(loc.coordinates)),
+          L.latLngBounds([])
+        );
+        if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50] });
+      }
+    } catch (error) {
+      console.error("เกิดข้อผิดพลาดใน MapView:", error);
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "ไม่สามารถโหลดแผนที่ได้ กรุณาลองใหม่",
+        variant: "destructive",
+      });
     }
-  }, [mapLocations, map]);
+
+    return () => {
+      if (mapRef.current) {
+        try {
+          mapRef.current.remove();
+          mapRef.current = null;
+        } catch (error) {
+          console.warn("เกิดข้อผิดพลาดขณะทำความสะอาดแผนที่:", error);
+        }
+      }
+    };
+  }, [map, mapLocations, toast]);
 
   return (
     <FeatureGroup>
@@ -176,17 +216,15 @@ const MapView = ({
           key={loc.id}
           position={loc.coordinates}
           icon={getMarkerIcon(loc.severity)}
-          eventHandlers={{
-            click: () => {
-              onLocationSelect(loc);
-            },
-          }}
+          eventHandlers={{ click: () => onLocationSelect(loc) }}
         >
           <Popup>
-            <div>
+            <div className="space-y-1">
               <h3 className="font-bold text-sm">{loc.title}</h3>
               <p className="text-xs text-gray-600">{loc.address}</p>
-              <p className="text-xs text-gray-600">ผู้ป่วย: {loc.patientName}</p>
+              <p className="text-xs text-gray-600">
+                ผู้ป่วย: {loc.patientName}
+              </p>
               <p className="text-xs text-gray-600">สถานะ: {loc.status}</p>
               <p className="text-xs text-gray-600 mt-1">{loc.description}</p>
             </div>
@@ -197,8 +235,309 @@ const MapView = ({
   );
 };
 
+// คอมโพเนนต์ CaseCard ที่แก้ไข hydration error และเพิ่ม dropdown โรงพยาบาล
+const CaseCard = ({
+  id,
+  description,
+  descriptionFull,
+  status,
+  severity,
+  grade,
+  reportedAt,
+  patientName,
+  contactNumber,
+  emergencyType,
+  location,
+  assignedTo,
+  symptoms,
+  role,
+}: EmergencyCase & { role: string }) => {
+  const { toast } = useToast();
+  const [selectedHospital, setSelectedHospital] = useState<string>("");
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+
+  // ดึงข้อมูลโรงพยาบาล
+  useEffect(() => {
+    const fetchHospitals = async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        if (!token) throw new Error("ไม่พบ access token");
+
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/hospitals`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        if (!response.ok)
+          throw new Error(
+            `ไม่สามารถดึงข้อมูลโรงพยาบาล: ${response.statusText}`
+          );
+        const data = await response.json();
+        setHospitals(
+          data.map((h: any) => ({
+            id: h.id,
+            name: h.name || "โรงพยาบาลไม่มีชื่อ",
+          }))
+        );
+      } catch (error) {
+        console.error("เกิดข้อผิดพลาดขณะดึงข้อมูลโรงพยาบาล:", error);
+        toast({
+          title: "ข้อผิดพลาด",
+          description: "ไม่สามารถดึงข้อมูลโรงพยาบาลได้",
+          variant: "destructive",
+        });
+      }
+    };
+    fetchHospitals();
+  }, [toast]);
+
+  // ฟังก์ชันมอบหมายเคส
+  const handleAssign = async () => {
+    if (!selectedHospital) {
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "กรุณาเลือกโรงพยาบาล",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      const token = localStorage.getItem("access_token");
+      if (!token) throw new Error("ไม่พบ access token");
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/sos/${id}/assign`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ hospitalId: selectedHospital }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `ไม่สามารถมอบหมายเคส: ${response.statusText} (${response.status}) - ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+      toast({
+        title: "มอบหมายเคสสำเร็จ",
+        description: `เคส ${id.slice(-8)} ถูกมอบหมายให้ ${
+          hospitals.find((h) => h.id === selectedHospital)?.name
+        }`,
+      });
+
+      // รีเฟรชข้อมูลหลังมอบหมาย
+      const fetchData = async () => {
+        const token = localStorage.getItem("access_token");
+        if (!token) return;
+        const emergenciesRes = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/dashboard/active-emergencies`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        if (emergenciesRes.ok) {
+          const emergenciesData = await emergenciesRes.json();
+          setCases(
+            emergenciesData.map((item: any) => ({
+              id: item.id,
+              description:
+                (item.description || "ไม่มีรายละเอียด").slice(0, 50) + "...",
+              descriptionFull: item.description || "ไม่มีรายละเอียด",
+              status: item.status.toLowerCase(),
+              severity: Number(item.medicalInfo?.severity) || 1,
+              grade: item.medicalInfo?.grade || "NON_URGENT",
+              reportedAt: item.createdAt || new Date().toISOString(),
+              patientName:
+                `${item.patient?.firstName || ""} ${
+                  item.patient?.lastName || ""
+                }`.trim() || "ไม่ทราบชื่อ",
+              contactNumber: item.patient?.phone || "N/A",
+              emergencyType: item.type,
+              location: {
+                address: item.location || "ไม่ทราบสถานที่",
+                coordinates: {
+                  lat: item.latitude || 0,
+                  lng: item.longitude || 0,
+                },
+              },
+              assignedTo: item.responses?.[0]?.organization?.name,
+              symptoms: Array.isArray(item.medicalInfo?.symptoms)
+                ? item.medicalInfo.symptoms
+                : [],
+            }))
+          );
+        }
+      };
+      await fetchData();
+    } catch (error) {
+      console.error("เกิดข้อผิดพลาดขณะมอบหมายเคส:", error);
+      toast({
+        title: "ข้อผิดพลาด",
+        description: `ไม่สามารถมอบหมายเคสได้: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const statusColors: Record<string, string> = {
+    pending:
+      "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+    assigned:
+      "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    "in-progress":
+      "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
+    completed:
+      "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+    cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  };
+
+  const severityColors: Record<number, string> = {
+    1: "bg-green-500 hover:bg-green-500/80",
+    2: "bg-yellow-500 hover:bg-yellow-500/80",
+    3: "bg-orange-500 hover:bg-orange-500/80",
+    4: "bg-red-500 hover:bg-red-500/80",
+  };
+
+  return (
+    <Card className="bg-white dark:bg-slate-800 shadow-lg hover:shadow-xl transition-shadow duration-200">
+      <CardHeader className="pb-2">
+        <div className="flex justify-between items-start">
+          <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-200">
+            เคส #{id.slice(-8)}
+          </CardTitle>
+          <Badge className={cn("text-sm font-medium", statusColors[status])}>
+            {status === "pending"
+              ? "รอการดำเนินการ"
+              : status === "assigned"
+              ? "มอบหมายแล้ว"
+              : status === "in-progress"
+              ? "กำลังดำเนินการ"
+              : status === "completed"
+              ? "เสร็จสิ้น"
+              : "ยกเลิก"}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4 text-slate-500" />
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                <span className="font-medium">ผู้ป่วย:</span> {patientName}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Phone className="h-4 w-4 text-slate-500" />
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                <span className="font-medium">ติดต่อ:</span> {contactNumber}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Map className="h-4 w-4 text-slate-500" />
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                <span className="font-medium">สถานที่:</span> {location.address}
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-slate-500" />
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                <span className="font-medium">เวลา:</span>{" "}
+                {new Date(reportedAt).toLocaleString("th-TH")}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                <span className="font-medium">ประเภท:</span> {emergencyType}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">
+                ระดับความรุนแรง:
+              </span>
+              <Badge className={cn("ml-2", severityColors[severity])}>
+                ระดับ {severity} (
+                {grade === "CRITICAL"
+                  ? "วิกฤต"
+                  : grade === "URGENT"
+                  ? "เร่งด่วน"
+                  : "ไม่เร่งด่วน"}
+                )
+              </Badge>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            รายละเอียด:
+          </p>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 line-clamp-3">
+            {descriptionFull}
+          </p>
+        </div>
+        {symptoms.length > 0 && (
+          <div>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              อาการ:
+            </p>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {symptoms.map((symptom, index) => (
+                <Badge key={index} variant="outline" className="text-xs">
+                  {symptom}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+        {assignedTo && (
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            <span className="font-medium">มอบหมายให้:</span> {assignedTo}
+          </p>
+        )}
+        {!assignedTo && status !== "completed" && status !== "cancelled" && (
+          <div className="flex gap-2 items-center">
+            <Select
+              value={selectedHospital}
+              onValueChange={setSelectedHospital}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="เลือกโรงพยาบาล" />
+              </SelectTrigger>
+              <SelectContent>
+                {hospitals.map((hospital) => (
+                  <SelectItem key={hospital.id} value={hospital.id}>
+                    {hospital.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              onClick={handleAssign}
+              disabled={!selectedHospital}
+            >
+              มอบหมาย
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 export default function EmergencyCenterCases() {
   const [cases, setCases] = useState<EmergencyCase[]>([]);
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [filters, setFilters] = useState<FilterState>({
@@ -206,20 +545,11 @@ export default function EmergencyCenterCases() {
     severity: "all",
     date: "all",
   });
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [newCase, setNewCase] = useState({
-    description: "",
-    type: "MEDICAL",
-    grade: "NON_URGENT",
-    location: "",
-    latitude: 0,
-    longitude: 0,
-    medicalInfo: { severity: 1 },
-    symptoms: [] as string[],
-    patientId: "",
-  });
-  const [selectedLocation, setSelectedLocation] = useState<MapLocation | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<MapLocation | null>(
+    null
+  );
   const { toast } = useToast();
+  const mapContainerRef = useRef<HTMLDivElement>(null);
 
   const typeTranslations: Record<string, string> = {
     ACCIDENT: "อุบัติเหตุ",
@@ -229,215 +559,125 @@ export default function EmergencyCenterCases() {
     OTHER: "อื่นๆ",
   };
 
-  const fetchActiveEmergencies = async () => {
+  const fetchData = async () => {
     try {
       const token = localStorage.getItem("access_token");
-      if (!token) {
-        throw new Error("No access token found. Please log in.");
-      }
+      if (!token) throw new Error("ไม่พบ access token กรุณาเข้าสู่ระบบ");
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/dashboard/active-emergencies`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      const [emergenciesRes, hospitalsRes] = await Promise.all([
+        fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/dashboard/active-emergencies`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        ),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/hospitals`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+
+      if (!emergenciesRes.ok)
+        throw new Error(
+          `ไม่สามารถดึงข้อมูลเคสฉุกเฉิน: ${emergenciesRes.statusText}`
+        );
+      if (!hospitalsRes.ok)
+        throw new Error(
+          `ไม่สามารถดึงข้อมูลโรงพยาบาล: ${hospitalsRes.statusText}`
+        );
+
+      const emergenciesData = await emergenciesRes.json();
+      const hospitalsData = await hospitalsRes.json();
+
+      const formattedCases: EmergencyCase[] = emergenciesData.map(
+        (item: any) => {
+          const symptomsData = item.medicalInfo?.symptoms;
+          const symptoms = Array.isArray(symptomsData)
+            ? symptomsData
+            : symptomsData
+            ? [symptomsData.toString()]
+            : [];
+          const validStatus = [
+            "pending",
+            "assigned",
+            "in-progress",
+            "completed",
+            "cancelled",
+          ];
+          const normalizedStatus = item.status
+            ? item.status.toLowerCase()
+            : "pending";
+          const status = validStatus.includes(normalizedStatus)
+            ? normalizedStatus
+            : "pending";
+          const gradeToSeverity: Record<string, number> = {
+            CRITICAL: 4,
+            URGENT: 3,
+            NON_URGENT: 1,
+          };
+          let severity =
+            Number(item.medicalInfo?.severity) ||
+            gradeToSeverity[item.grade] ||
+            1;
+          let grade = (
+            item.medicalInfo?.grade ||
+            item.grade ||
+            "NON_URGENT"
+          ).toUpperCase();
+          if (grade === "UNKNOWN" || !grade || grade === "") {
+            grade = "NON_URGENT";
+            severity = 1;
+            console.log(
+              `ปรับ grade เป็น NON_URGENT และ severity เป็น 1 สำหรับเคส ${item.id}`
+            );
+          }
+          const validSeverity = severity >= 1 && severity <= 4 ? severity : 1;
+          const validGrade = ["CRITICAL", "URGENT", "NON_URGENT"].includes(
+            grade
+          )
+            ? grade
+            : "NON_URGENT";
+
+          return {
+            id: item.id || "unknown-id",
+            description:
+              (item.description || "ไม่มีรายละเอียด").slice(0, 50) + "...",
+            descriptionFull: item.description || "ไม่มีรายละเอียด",
+            status: status as EmergencyCase["status"],
+            severity: validSeverity as 1 | 2 | 3 | 4,
+            grade: validGrade as "CRITICAL" | "URGENT" | "NON_URGENT",
+            reportedAt: item.createdAt || new Date().toISOString(),
+            patientName:
+              `${item.patient?.firstName || ""} ${
+                item.patient?.lastName || ""
+              }`.trim() || "ไม่ทราบชื่อ",
+            contactNumber: item.patient?.phone || "N/A",
+            emergencyType:
+              typeTranslations[item.type] || typeTranslations["OTHER"],
+            location: {
+              address: item.location || "ไม่ทราบสถานที่",
+              coordinates: {
+                lat: item.latitude || 0,
+                lng: item.longitude || 0,
+              },
+            },
+            assignedTo: item.responses?.[0]?.organization?.name || undefined,
+            symptoms,
+          };
         }
       );
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch emergencies: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      console.log("API Response:", data);
-
-      const formattedCases: EmergencyCase[] = data.map((item: any) => {
-        console.log("Item type:", item.type, "Item status:", item.status); // Debug status
-        const symptomsData = item.medicalInfo?.symptoms;
-        const symptoms = Array.isArray(symptomsData)
-          ? symptomsData
-          : symptomsData
-          ? [symptomsData.toString()]
-          : [];
-
-        const validStatus = [
-          "pending",
-          "assigned",
-          "in-progress",
-          "completed",
-          "cancelled",
-        ];
-        // แปลง status จาก API ให้เป็นตัวพิมพ์เล็กก่อนตรวจสอบ
-        const normalizedStatus = item.status ? item.status.toLowerCase() : "pending";
-        const status = validStatus.includes(normalizedStatus)
-          ? normalizedStatus
-          : "pending";
-
-        const gradeToSeverity: Record<string, number> = {
-          CRITICAL: 4,
-          URGENT: 3,
-          NON_URGENT: 1,
-        };
-        const severity = Number(item.medicalInfo?.severity) || gradeToSeverity[item.grade] || 1;
-        const validSeverity = severity >= 1 && severity <= 4 ? severity : 1;
-
-        return {
-          id: item.id || "unknown-id",
-          description: (item.description || "No description available").slice(0, 50) + "...",
-          descriptionFull: item.description || "No description available",
-          status: status as EmergencyCase["status"],
-          severity: validSeverity as 1 | 2 | 3 | 4,
-          reportedAt: item.createdAt || new Date().toISOString(),
-          patientName: `${item.patient?.firstName || ""} ${item.patient?.lastName || ""}`.trim() || "Unknown",
-          contactNumber: item.patient?.phone || "N/A",
-          emergencyType: typeTranslations[item.type] || typeTranslations["OTHER"],
-          location: {
-            address: item.location || "Unknown",
-            coordinates: {
-              lat: item.latitude || 0,
-              lng: item.longitude || 0,
-            },
-          },
-          assignedTo: item.responses?.[0]?.organization?.name || undefined,
-          symptoms,
-        };
-      });
-
       setCases(formattedCases);
+      setHospitals(
+        hospitalsData.map((h: any) => ({
+          id: h.id,
+          name: h.name || "โรงพยาบาลไม่มีชื่อ",
+        }))
+      );
     } catch (error) {
-      console.error("Error fetching emergencies:", error);
+      console.error("เกิดข้อผิดพลาดขณะดึงข้อมูล:", error);
       toast({
         title: "ข้อผิดพลาด",
-        description: "ไม่สามารถดึงข้อมูลเคสฉุกเฉินได้ กรุณาลองใหม่",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleCreateCase = async () => {
-    try {
-      const token = localStorage.getItem("access_token");
-      if (!token) {
-        throw new Error("No access token found. Please log in.");
-      }
-
-      const payload = {
-        ...newCase,
-        medicalInfo: {
-          ...newCase.medicalInfo,
-          symptoms: newCase.symptoms,
-        },
-      };
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to create case: ${response.statusText}`);
-      }
-
-      toast({
-        title: "สร้างเคสสำเร็จ",
-        description: "เคสฉุกเฉินใหม่ถูกสร้างเรียบร้อยแล้ว",
-      });
-      setIsCreateModalOpen(false);
-      setNewCase({
-        description: "",
-        type: "MEDICAL",
-        grade: "NON_URGENT",
-        location: "",
-        latitude: 0,
-        longitude: 0,
-        medicalInfo: { severity: 1 },
-        symptoms: [],
-        patientId: "",
-      });
-      await fetchActiveEmergencies();
-    } catch (error) {
-      console.error("Error creating case:", error);
-      toast({
-        title: "ข้อผิดพลาด",
-        description: "ไม่สามารถสร้างเคสได้ กรุณาลองใหม่",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleAssignCase = async (caseId: string) => {
-    try {
-      const token = localStorage.getItem("access_token");
-      if (!token) {
-        throw new Error("No access token found. Please log in.");
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos/assign`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          caseId,
-          assignedToId: "thonburi-hospital-id",
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to assign case: ${response.statusText}`);
-      }
-
-      toast({
-        title: "มอบหมายเคสสำเร็จ",
-        description: `เคส ${caseId} ถูกมอบหมายให้ Thonburi Hospital`,
-      });
-      await fetchActiveEmergencies();
-    } catch (error) {
-      console.error("Error assigning case:", error);
-      toast({
-        title: "ข้อผิดพลาด",
-        description: "ไม่สามารถมอบหมายเคสได้ กรุณาลองใหม่",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleCancelCase = async (caseId: string) => {
-    try {
-      const token = localStorage.getItem("access_token");
-      if (!token) {
-        throw new Error("No access token found. Please log in.");
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos/cancel`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ caseId }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to cancel case: ${response.statusText}`);
-      }
-
-      toast({
-        title: "ยกเลิกเคสสำเร็จ",
-        description: `เคส ${caseId} ถูกยกเลิก`,
-      });
-      await fetchActiveEmergencies();
-    } catch (error) {
-      console.error("Error cancelling case:", error);
-      toast({
-        title: "ข้อผิดพลาด",
-        description: "ไม่สามารถยกเลิกเคสได้ กรุณาลองใหม่",
+        description: "ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่",
         variant: "destructive",
       });
     }
@@ -455,79 +695,91 @@ export default function EmergencyCenterCases() {
       return;
     }
 
-    webSocketClient.connect(token);
-
-    webSocketClient.onStatusUpdate((data) => {
-      console.log("Status update received:", data);
-      fetchActiveEmergencies();
-    });
-
-    webSocketClient.on("notification", (data) => {
-      console.log("Notification received:", data);
-      toast({
-        title: data.title || "การแจ้งเตือน",
-        description: data.body || "มีข้อความแจ้งเตือนใหม่",
+    const connectWebSocket = () => {
+      webSocketClient.connect(token);
+      webSocketClient.onStatusUpdate((data) => {
+        console.log("ได้รับการอัปเดตสถานะ:", data);
+        fetchData();
       });
-    });
+      webSocketClient.on("notification", (data) => {
+        console.log("ได้รับการแจ้งเตือน:", data);
+        toast({
+          title: data.title || "การแจ้งเตือน",
+          description: data.body || "มีข้อความแจ้งเตือนใหม่",
+        });
+      });
+      webSocketClient.onEmergency((data) => {
+        console.log("ได้รับเคสฉุกเฉินใหม่:", data);
+        fetchData();
+      });
+    };
 
-    webSocketClient.onEmergency((data) => {
-      console.log("New emergency case:", data);
-      fetchActiveEmergencies();
-    });
-
-    fetchActiveEmergencies();
+    fetchData();
+    connectWebSocket();
 
     return () => {
       webSocketClient.disconnect();
     };
-  }, []);
+  }, [toast]);
 
-  const filteredCases = useMemo(() => cases.filter((c) => {
-    const matchesSearch =
-      c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.emergencyType.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesStatus = filters.status === "all" || c.status === filters.status;
-
-    const matchesSeverity =
-      filters.severity === "all" || c.severity.toString() === filters.severity;
-
-    let matchesDate = true;
-    if (filters.date !== "all") {
-      const reportedDate = new Date(c.reportedAt);
-      if (isNaN(reportedDate.getTime())) return false;
-      const today = new Date();
-      if (filters.date === "today") {
-        matchesDate = reportedDate.toDateString() === today.toDateString();
-      } else if (filters.date === "yesterday") {
-        const yesterday = new Date(today);
-        yesterday.setDate(today.getDate() - 1);
-        matchesDate = reportedDate.toDateString() === yesterday.toDateString();
-      } else if (filters.date === "week") {
-        const oneWeekAgo = new Date(today);
-        oneWeekAgo.setDate(today.getDate() - 7);
-        matchesDate = reportedDate >= oneWeekAgo && reportedDate <= today;
+  const filteredCases = useMemo(() => {
+    return cases.filter((c) => {
+      const matchesSearch =
+        c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.emergencyType.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus =
+        filters.status === "all" || c.status === filters.status;
+      const matchesSeverity =
+        filters.severity === "all" ||
+        c.severity.toString() === filters.severity;
+      let matchesDate = true;
+      if (filters.date !== "all") {
+        const reportedDate = new Date(c.reportedAt);
+        if (isNaN(reportedDate.getTime())) return false;
+        const today = new Date();
+        if (filters.date === "today") {
+          matchesDate = reportedDate.toDateString() === today.toDateString();
+        } else if (filters.date === "yesterday") {
+          const yesterday = new Date(today);
+          yesterday.setDate(today.getDate() - 1);
+          matchesDate =
+            reportedDate.toDateString() === yesterday.toDateString();
+        } else if (filters.date === "week") {
+          const oneWeekAgo = new Date(today);
+          oneWeekAgo.setDate(today.getDate() - 7);
+          matchesDate = reportedDate >= oneWeekAgo && reportedDate <= today;
+        }
       }
-    }
+      return matchesSearch && matchesStatus && matchesSeverity && matchesDate;
+    });
+  }, [cases, searchQuery, filters]);
 
-    return matchesSearch && matchesStatus && matchesSeverity && matchesDate;
-  }), [cases, searchQuery, filters]);
-
-  const mapLocations = useMemo((): MapLocation[] => 
-    filteredCases
-      .filter((c) => c.location.coordinates.lat !== 0 && c.location.coordinates.lng !== 0)  // Filter invalid coords
-      .map((c) => ({
-        id: c.id,
-        title: c.description,
-        severity: c.severity,
-        coordinates: [c.location.coordinates.lat, c.location.coordinates.lng] as [number, number],
-        address: c.location.address,
-        description: c.descriptionFull,
-        patientName: c.patientName,
-        status: c.status,
-      })), [filteredCases]
+  const mapLocations = useMemo(
+    () =>
+      filteredCases
+        .filter(
+          (c) =>
+            c.location.coordinates.lat !== 0 &&
+            c.location.coordinates.lng !== 0 &&
+            !isNaN(c.location.coordinates.lat) &&
+            !isNaN(c.location.coordinates.lng)
+        )
+        .map((c) => ({
+          id: c.id,
+          title: c.description,
+          severity: c.severity,
+          coordinates: [
+            c.location.coordinates.lat,
+            c.location.coordinates.lng,
+          ] as [number, number],
+          address: c.location.address,
+          description: c.descriptionFull,
+          patientName: c.patientName,
+          status: c.status,
+        })),
+    [filteredCases]
   );
 
   return (
@@ -595,130 +847,20 @@ export default function EmergencyCenterCases() {
           }
         }
       `}</style>
-      <DashboardLayout 
+      <DashboardLayout
         role="emergency-center"
-        notifications={[]}  // Placeholder for notifications
-        unreadCount={0}     // Placeholder
-        onMarkAsRead={() => {}}  // Placeholder
-        onMarkAllAsRead={() => {}}  // Placeholder
+        notifications={[]}
+        unreadCount={0}
+        onMarkAsRead={() => {}}
+        onMarkAllAsRead={() => {}}
       >
-        <div className="space-y-6">
+        <div className="p-6 space-y-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h1 className="text-2xl font-bold">เคสฉุกเฉิน</h1>
               <p className="text-slate-500 dark:text-slate-400">
                 จัดการและติดตามเคสฉุกเฉินทั้งหมด
               </p>
-            </div>
-            <div className="flex gap-2">
-              <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    สร้างเคสใหม่
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>สร้างเคสฉุกเฉินใหม่</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label>ประเภทฉุกเฉิน</Label>
-                      <Select
-                        value={newCase.type}
-                        onValueChange={(value) => setNewCase({ ...newCase, type: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="เลือกประเภท" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ACCIDENT">อุบัติเหตุ</SelectItem>
-                          <SelectItem value="MEDICAL">การแพทย์</SelectItem>
-                          <SelectItem value="FIRE">ไฟไหม้</SelectItem>
-                          <SelectItem value="CRIME">อาชญากรรม</SelectItem>
-                          <SelectItem value="OTHER">อื่นๆ</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>ระดับความรุนแรง</Label>
-                      <Select
-                        value={newCase.grade}
-                        onValueChange={(value) => setNewCase({ ...newCase, grade: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="เลือกระดับ" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="CRITICAL">วิกฤต</SelectItem>
-                          <SelectItem value="URGENT">เร่งด่วน</SelectItem>
-                          <SelectItem value="NON_URGENT">ไม่เร่งด่วน</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>คำอธิบาย</Label>
-                      <Textarea
-                        value={newCase.description}
-                        onChange={(e) => setNewCase({ ...newCase, description: e.target.value })}
-                        placeholder="อธิบายรายละเอียดเคส..."
-                      />
-                    </div>
-                    <div>
-                      <Label>สถานที่</Label>
-                      <Input
-                        value={newCase.location}
-                        onChange={(e) => setNewCase({ ...newCase, location: e.target.value })}
-                        placeholder="ที่อยู่"
-                      />
-                    </div>
-                    <div className="flex gap-4">
-                      <div>
-                        <Label>ละติจูด</Label>
-                        <Input
-                          type="number"
-                          value={newCase.latitude}
-                          onChange={(e) =>
-                            setNewCase({ ...newCase, latitude: parseFloat(e.target.value) || 0 })
-                          }
-                          placeholder="ละติจูด"
-                        />
-                      </div>
-                      <div>
-                        <Label>ลองจิจูด</Label>
-                        <Input
-                          type="number"
-                          value={newCase.longitude}
-                          onChange={(e) =>
-                            setNewCase({ ...newCase, longitude: parseFloat(e.target.value) || 0 })
-                          }
-                          placeholder="ลองจิจูด"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label>อาการ</Label>
-                      <Input
-                        value={newCase.symptoms.join(", ")}
-                        onChange={(e) =>
-                          setNewCase({ ...newCase, symptoms: e.target.value.split(", ").filter(Boolean) })
-                        }
-                        placeholder="ระบุอาการ (คั่นด้วย comma เช่น หมดสติ, หายใจลำบาก)"
-                      />
-                    </div>
-                    <div>
-                      <Label>ผู้ป่วย</Label>
-                      <Input
-                        value={newCase.patientId || ""}
-                        onChange={(e) => setNewCase({ ...newCase, patientId: e.target.value })}
-                        placeholder="ID ผู้ป่วย (ถ้ามี)"
-                      />
-                    </div>
-                    <Button onClick={handleCreateCase}>สร้างเคส</Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
             </div>
           </div>
 
@@ -733,11 +875,12 @@ export default function EmergencyCenterCases() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-
             <div className="flex flex-wrap gap-2">
               <Select
                 value={filters.status}
-                onValueChange={(value) => setFilters({ ...filters, status: value })}
+                onValueChange={(value) =>
+                  setFilters({ ...filters, status: value })
+                }
               >
                 <SelectTrigger className="w-[130px]">
                   <SelectValue placeholder="สถานะ" />
@@ -751,7 +894,6 @@ export default function EmergencyCenterCases() {
                   <SelectItem value="cancelled">ยกเลิก</SelectItem>
                 </SelectContent>
               </Select>
-
               <Select
                 value={filters.severity}
                 onValueChange={(value) =>
@@ -769,7 +911,6 @@ export default function EmergencyCenterCases() {
                   <SelectItem value="4">ระดับ 4 (วิกฤต)</SelectItem>
                 </SelectContent>
               </Select>
-
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="flex items-center gap-2">
@@ -783,7 +924,9 @@ export default function EmergencyCenterCases() {
                   <DropdownMenuSeparator />
                   <DropdownMenuCheckboxItem
                     checked={filters.date === "all"}
-                    onCheckedChange={() => setFilters({ ...filters, date: "all" })}
+                    onCheckedChange={() =>
+                      setFilters({ ...filters, date: "all" })
+                    }
                   >
                     ทุกวันที่
                   </DropdownMenuCheckboxItem>
@@ -813,7 +956,6 @@ export default function EmergencyCenterCases() {
                   </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-
               <div className="flex border rounded-md">
                 <Button
                   variant={viewMode === "list" ? "secondary" : "ghost"}
@@ -836,58 +978,71 @@ export default function EmergencyCenterCases() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  รวมทั้งหมด
-                </p>
-                <Badge className="bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200">
-                  {filteredCases.length}
-                </Badge>
-              </div>
-            </div>
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  รอการดำเนินการ
-                </p>
-                <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-500">
-                  {filteredCases.filter((c) => c.status === "pending").length}
-                </Badge>
-              </div>
-            </div>
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  วิกฤต
-                </p>
-                <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500">
-                  {filteredCases.filter((c) => c.severity === 4).length}
-                </Badge>
-              </div>
-            </div>
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  เสร็จสิ้น
-                </p>
-                <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500">
-                  {filteredCases.filter((c) => c.status === "completed").length}
-                </Badge>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="bg-white dark:bg-slate-800 shadow-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                    รวมทั้งหมด
+                  </p>
+                  <Badge className="bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200">
+                    {filteredCases.length}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white dark:bg-slate-800 shadow-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                    รอการดำเนินการ
+                  </p>
+                  <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-500">
+                    {filteredCases.filter((c) => c.status === "pending").length}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white dark:bg-slate-800 shadow-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                    วิกฤต
+                  </p>
+                  <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500">
+                    {filteredCases.filter((c) => c.severity === 4).length}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white dark:bg-slate-800 shadow-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                    เสร็จสิ้น
+                  </p>
+                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500">
+                    {
+                      filteredCases.filter((c) => c.status === "completed")
+                        .length
+                    }
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {viewMode === "list" ? (
             <div className="space-y-4">
               {filteredCases.length === 0 ? (
-                <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
-                  <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-slate-400" />
-                  <p className="text-slate-500 dark:text-slate-400">
-                    ไม่พบเคสที่ตรงกับเกณฑ์การค้นหา
-                  </p>
-                </div>
+                <Card className="text-center py-8 bg-white dark:bg-slate-800 shadow-sm">
+                  <CardContent>
+                    <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                    <p className="text-slate-500 dark:text-slate-400">
+                      ไม่พบเคสที่ตรงกับเกณฑ์การค้นหา
+                    </p>
+                  </CardContent>
+                </Card>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {filteredCases.map((emergencyCase) => (
@@ -898,6 +1053,7 @@ export default function EmergencyCenterCases() {
                       descriptionFull={emergencyCase.descriptionFull}
                       status={emergencyCase.status}
                       severity={emergencyCase.severity}
+                      grade={emergencyCase.grade}
                       reportedAt={emergencyCase.reportedAt}
                       patientName={emergencyCase.patientName}
                       contactNumber={emergencyCase.contactNumber}
@@ -905,7 +1061,6 @@ export default function EmergencyCenterCases() {
                       location={emergencyCase.location}
                       assignedTo={emergencyCase.assignedTo}
                       symptoms={emergencyCase.symptoms}
-                      onAssign={() => handleAssignCase(emergencyCase.id)}
                       role="emergency-center"
                     />
                   ))}
@@ -914,22 +1069,35 @@ export default function EmergencyCenterCases() {
             </div>
           ) : (
             <div className="space-y-4">
-              <MapContainer
-                center={[13.7563, 100.5018]}
-                zoom={10}
-                style={{ height: "500px", width: "100%" }}
-              >
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                />
-                <MapView 
-                  mapLocations={mapLocations} 
-                  onLocationSelect={setSelectedLocation} 
-                />
-              </MapContainer>
+              <div ref={mapContainerRef} className="relative">
+                <MapContainer
+                  center={[13.7563, 100.5018]}
+                  zoom={10}
+                  style={{ height: "500px", width: "100%" }}
+                  key="emergency-map"
+                  whenCreated={(map) => {
+                    if (mapContainerRef.current) {
+                      const existingMap =
+                        mapContainerRef.current.querySelector(
+                          ".leaflet-container"
+                        );
+                      if (existingMap) existingMap.remove();
+                    }
+                  }}
+                >
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  />
+                  <MapView
+                    mapLocations={mapLocations}
+                    onLocationSelect={setSelectedLocation}
+                  />
+                </MapContainer>
+              </div>
               <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
-                แสดง {mapLocations.length} เคสฉุกเฉินบนแผนที่ คลิกที่จุดเพื่อดูรายละเอียด
+                แสดง {mapLocations.length} เคสฉุกเฉินบนแผนที่
+                คลิกที่จุดเพื่อดูรายละเอียด
               </p>
             </div>
           )}

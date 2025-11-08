@@ -5,13 +5,39 @@ import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, Clock, Hospital, Activity, Search, TrendingUp, BarChart3, Calendar } from "lucide-react";
+import {
+  AlertTriangle,
+  Clock,
+  Hospital,
+  Activity,
+  Search,
+  TrendingUp,
+  BarChart3,
+  Calendar,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/app/shared/hooks/use-toast";
 import { webSocketClient } from "@/lib/websocket";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from "recharts";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+  Area,
+  AreaChart,
+} from "recharts";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // Interfaces
 interface EmergencyRequestFromApi {
@@ -96,11 +122,19 @@ interface MonthlyTrendData {
 }
 
 // Component สำหรับ Case Card
-function ModernCaseCard({ emergencyCase, role, onViewDetails }: { emergencyCase: EmergencyCase; role: string; onViewDetails: (caseItem: EmergencyCase) => void }) {
+function ModernCaseCard({
+  emergencyCase,
+  role,
+  onViewDetails,
+}: {
+  emergencyCase: EmergencyCase;
+  role: string;
+  onViewDetails: (caseItem: EmergencyCase) => void;
+}) {
   const gradeColors = {
     CRITICAL: "bg-red-500",
     URGENT: "bg-orange-500",
-    NON_URGENT: "bg-yellow-500"
+    NON_URGENT: "bg-yellow-500",
   };
 
   const statusColors = {
@@ -108,7 +142,7 @@ function ModernCaseCard({ emergencyCase, role, onViewDetails }: { emergencyCase:
     assigned: "bg-blue-500",
     "in-progress": "bg-purple-500",
     completed: "bg-green-500",
-    cancelled: "bg-gray-400"
+    cancelled: "bg-gray-400",
   };
 
   const statusText = {
@@ -116,7 +150,7 @@ function ModernCaseCard({ emergencyCase, role, onViewDetails }: { emergencyCase:
     assigned: "มอบหมายแล้ว",
     "in-progress": "กำลังดำเนินการ",
     completed: "เสร็จสิ้น",
-    cancelled: "ยกเลิก"
+    cancelled: "ยกเลิก",
   };
 
   return (
@@ -124,17 +158,25 @@ function ModernCaseCard({ emergencyCase, role, onViewDetails }: { emergencyCase:
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-3">
           <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${gradeColors[emergencyCase.grade]}`} />
-            <span className="font-semibold text-sm">#{emergencyCase.id.slice(0, 8)}</span>
+            <div
+              className={`w-2 h-2 rounded-full ${
+                gradeColors[emergencyCase.grade]
+              }`}
+            />
+            <span className="font-semibold text-sm">
+              #{emergencyCase.id.slice(0, 8)}
+            </span>
           </div>
           <Badge className={`${statusColors[emergencyCase.status]} text-white`}>
             {statusText[emergencyCase.status]}
           </Badge>
         </div>
-        
+
         <h3 className="font-semibold mb-2">{emergencyCase.emergencyType}</h3>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">{emergencyCase.description}</p>
-        
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+          {emergencyCase.description}
+        </p>
+
         <div className="space-y-2 text-sm">
           <div className="flex items-center gap-2">
             <span className="text-slate-500">ผู้ป่วย:</span>
@@ -142,7 +184,9 @@ function ModernCaseCard({ emergencyCase, role, onViewDetails }: { emergencyCase:
           </div>
           <div className="flex items-center gap-2">
             <span className="text-slate-500">สถานที่:</span>
-            <span className="font-medium">{emergencyCase.location.address}</span>
+            <span className="font-medium">
+              {emergencyCase.location.address}
+            </span>
           </div>
           {emergencyCase.assignedTo && (
             <div className="flex items-center gap-2">
@@ -151,10 +195,18 @@ function ModernCaseCard({ emergencyCase, role, onViewDetails }: { emergencyCase:
             </div>
           )}
         </div>
-        
+
         <div className="mt-3 pt-3 border-t flex justify-between items-center text-xs text-slate-500">
-          <span>{new Date(emergencyCase.reportedAt).toLocaleString('th-TH')}</span>
-          <Button size="sm" variant="outline" onClick={() => onViewDetails(emergencyCase)}>ดูรายละเอียด</Button>
+          <span>
+            {new Date(emergencyCase.reportedAt).toLocaleString("th-TH")}
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onViewDetails(emergencyCase)}
+          >
+            ดูรายละเอียด
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -167,7 +219,9 @@ export default function EmergencyCenterDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState("12-months");
-  const [monthlyTrendData, setMonthlyTrendData] = useState<MonthlyTrendData[]>([]);
+  const [monthlyTrendData, setMonthlyTrendData] = useState<MonthlyTrendData[]>(
+    []
+  );
   const [open, setOpen] = useState(false);
   const [selectedCase, setSelectedCase] = useState<EmergencyCase | null>(null);
   const { toast } = useToast();
@@ -187,8 +241,11 @@ export default function EmergencyCenterDashboard() {
     cases.forEach((caseItem) => {
       const caseDate = new Date(caseItem.reportedAt);
       if (caseDate >= startDate) {
-        const monthKey = caseDate.toLocaleString('en-US', { month: 'short', year: 'numeric' });
-        
+        const monthKey = caseDate.toLocaleString("en-US", {
+          month: "short",
+          year: "numeric",
+        });
+
         if (!months[monthKey]) {
           months[monthKey] = {
             month: monthKey,
@@ -264,44 +321,59 @@ export default function EmergencyCenterDashboard() {
       );
       if (!response.ok) throw new Error("Failed to fetch emergencies");
       const data = await response.json();
-      const formattedCases: EmergencyCase[] = data.map((item: EmergencyRequestFromApi) => {
-        const symptomsData = item.medicalInfo?.symptoms;
-        const symptoms = Array.isArray(symptomsData)
-          ? symptomsData
-          : symptomsData
-          ? [symptomsData.toString()]
-          : [];
+      const formattedCases: EmergencyCase[] = data
+        .map((item: EmergencyRequestFromApi) => {
+          const symptomsData = item.medicalInfo?.symptoms;
+          const symptoms = Array.isArray(symptomsData)
+            ? symptomsData
+            : symptomsData
+            ? [symptomsData.toString()]
+            : [];
 
-        const validGrades = ["CRITICAL", "URGENT", "NON_URGENT"] as const;
-        const gradeFromApi = (item.medicalInfo?.grade || item.grade)?.toUpperCase();
-        const grade = validGrades.includes(gradeFromApi as any)
-          ? gradeFromApi
-          : "NON_URGENT";
+          const validGrades = ["CRITICAL", "URGENT", "NON_URGENT"] as const;
+          const gradeFromApi = (
+            item.medicalInfo?.grade || item.grade
+          )?.toUpperCase();
+          const grade = validGrades.includes(gradeFromApi as any)
+            ? gradeFromApi
+            : "NON_URGENT";
 
-        return {
-          id: item.id,
-          description: (item.description || "No description available").slice(0, 50) + "...",
-          descriptionFull: item.description || "No description available",
-          status: item.status.toLowerCase() as "pending" | "assigned" | "in-progress" | "completed" | "cancelled",
-          grade: grade as "CRITICAL" | "URGENT" | "NON_URGENT",
-          reportedAt: item.createdAt,
-          patientName: `${item.patient.firstName} ${item.patient.lastName}`.trim() || "Unknown",
-          contactNumber: item.patient.phone || "",
-          emergencyType: item.emergencyType || item.type || "Unknown",
-          location: {
-            address: item.location || "Unknown",
-            coordinates: {
-              lat: item.latitude || 0,
-              lng: item.longitude || 0,
+          return {
+            id: item.id,
+            description:
+              (item.description || "No description available").slice(0, 50) +
+              "...",
+            descriptionFull: item.description || "No description available",
+            status: item.status.toLowerCase() as
+              | "pending"
+              | "assigned"
+              | "in-progress"
+              | "completed"
+              | "cancelled",
+            grade: grade as "CRITICAL" | "URGENT" | "NON_URGENT",
+            reportedAt: item.createdAt,
+            patientName:
+              `${item.patient.firstName} ${item.patient.lastName}`.trim() ||
+              "Unknown",
+            contactNumber: item.patient.phone || "",
+            emergencyType: item.emergencyType || item.type || "Unknown",
+            location: {
+              address: item.location || "Unknown",
+              coordinates: {
+                lat: item.latitude || 0,
+                lng: item.longitude || 0,
+              },
             },
-          },
-          assignedTo: item.responses?.[0]?.organization?.name,
-          symptoms,
-        };
-      }).filter((c: EmergencyCase | null): c is EmergencyCase => c !== null);
+            assignedTo: item.responses?.[0]?.organization?.name,
+            symptoms,
+          };
+        })
+        .filter((c: EmergencyCase | null): c is EmergencyCase => c !== null);
       setCases(formattedCases);
       // ประมวลผลข้อมูลสำหรับกราฟเมื่อดึงเคสสำเร็จ
-      setMonthlyTrendData(processCaseDataForCharts(formattedCases, selectedPeriod));
+      setMonthlyTrendData(
+        processCaseDataForCharts(formattedCases, selectedPeriod)
+      );
     } catch (error) {
       console.error("Error fetching emergencies:", error);
       toast({
@@ -378,7 +450,8 @@ export default function EmergencyCenterDashboard() {
           },
         }
       );
-      if (!response.ok) throw new Error("Failed to mark all notifications as read");
+      if (!response.ok)
+        throw new Error("Failed to mark all notifications as read");
       setNotifications((prev) =>
         prev.map((notif) => ({ ...notif, isRead: true }))
       );
@@ -402,11 +475,17 @@ export default function EmergencyCenterDashboard() {
         setCases((prevCases) => {
           const updatedCases = prevCases.map((c) =>
             c.id === data.emergencyId
-              ? { ...c, status: data.status.toLowerCase(), assignedTo: data.assignedTo || c.assignedTo }
+              ? {
+                  ...c,
+                  status: data.status.toLowerCase(),
+                  assignedTo: data.assignedTo || c.assignedTo,
+                }
               : c
           );
           // อัปเดตกราฟเมื่อสถานะเคสเปลี่ยน
-          setMonthlyTrendData(processCaseDataForCharts(updatedCases, selectedPeriod));
+          setMonthlyTrendData(
+            processCaseDataForCharts(updatedCases, selectedPeriod)
+          );
           return updatedCases;
         });
         toast({
@@ -428,10 +507,15 @@ export default function EmergencyCenterDashboard() {
         console.log("New emergency case:", data);
         const newCase: EmergencyCase = {
           id: data.id,
-          description: (data.description || "No description available").slice(0, 50) + "...",
+          description:
+            (data.description || "No description available").slice(0, 50) +
+            "...",
           descriptionFull: data.description || "No description available",
           status: "pending",
-          grade: data.grade.toUpperCase() as "CRITICAL" | "URGENT" | "NON_URGENT",
+          grade: data.grade.toUpperCase() as
+            | "CRITICAL"
+            | "URGENT"
+            | "NON_URGENT",
           reportedAt: new Date().toISOString(),
           patientName: "Unknown",
           contactNumber: "",
@@ -449,7 +533,9 @@ export default function EmergencyCenterDashboard() {
         setCases((prev) => {
           const updatedCases = [newCase, ...prev];
           // อัปเดตกราฟเมื่อมีเคสใหม่
-          setMonthlyTrendData(processCaseDataForCharts(updatedCases, selectedPeriod));
+          setMonthlyTrendData(
+            processCaseDataForCharts(updatedCases, selectedPeriod)
+          );
           return updatedCases;
         });
         toast({
@@ -491,7 +577,7 @@ export default function EmergencyCenterDashboard() {
       });
 
       const checkConnection = setInterval(() => {
-        if (webSocketClient && !webSocketClient['socket']?.connected) {
+        if (webSocketClient && !webSocketClient["socket"]?.connected) {
           webSocketClient.connect(token);
         }
       }, 5000);
@@ -522,13 +608,15 @@ export default function EmergencyCenterDashboard() {
 
   const pendingCases = cases.filter((c) => c.status === "pending").length;
   const assignedCases = cases.filter((c) => c.status === "assigned").length;
-  const inProgressCases = cases.filter((c) => c.status === "in-progress").length;
+  const inProgressCases = cases.filter(
+    (c) => c.status === "in-progress"
+  ).length;
   const workingCases = assignedCases + inProgressCases;
   const criticalCases = cases.filter((c) => c.grade === "CRITICAL").length;
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return (
-    <DashboardLayout 
+    <DashboardLayout
       role="emergency-center"
       notifications={notifications}
       unreadCount={unreadCount}
@@ -543,18 +631,30 @@ export default function EmergencyCenterDashboard() {
               Emergency Center Dashboard
             </h1>
             <p className="text-slate-600 dark:text-slate-400 mt-1">
-              Reporting Month: <span className="font-semibold">October 2025</span>
+              Reporting Month:{" "}
+              <span className="font-semibold">October 2025</span>
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant={selectedPeriod === "6-months" ? "default" : "outline"} size="sm" onClick={() => setSelectedPeriod("6-months")}>
-              <Calendar className="h-4 w-4 mr-2" />
-              6 Months
+            <Button
+              variant={selectedPeriod === "6-months" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedPeriod("6-months")}
+            >
+              <Calendar className="h-4 w-4 mr-2" />6 Months
             </Button>
-            <Button variant={selectedPeriod === "12-months" ? "default" : "outline"} size="sm" onClick={() => setSelectedPeriod("12-months")}>
+            <Button
+              variant={selectedPeriod === "12-months" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedPeriod("12-months")}
+            >
               12 Months
             </Button>
-            <Button variant={selectedPeriod === "24-months" ? "default" : "outline"} size="sm" onClick={() => setSelectedPeriod("24-months")}>
+            <Button
+              variant={selectedPeriod === "24-months" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedPeriod("24-months")}
+            >
               24 Months
             </Button>
           </div>
@@ -567,16 +667,24 @@ export default function EmergencyCenterDashboard() {
               <CardContent className="p-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">All Admissions</p>
-                    <h3 className="text-3xl font-bold">{stats.totalEmergencies}</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">
+                      All Admissions
+                    </p>
+                    <h3 className="text-3xl font-bold">
+                      {stats.totalEmergencies}
+                    </h3>
                     <div className="mt-2 space-y-1 text-xs">
                       <div className="flex justify-between">
                         <span className="text-slate-500">Active Cases:</span>
-                        <span className="font-semibold">{stats.activeEmergencies}</span>
+                        <span className="font-semibold">
+                          {stats.activeEmergencies}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-500">Completed:</span>
-                        <span className="font-semibold">{stats.completedEmergencies}</span>
+                        <span className="font-semibold">
+                          {stats.completedEmergencies}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -591,12 +699,20 @@ export default function EmergencyCenterDashboard() {
               <CardContent className="p-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Critical Cases</p>
-                    <h3 className="text-3xl font-bold">{stats.criticalCases}</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">
+                      Critical Cases
+                    </p>
+                    <h3 className="text-3xl font-bold">
+                      {stats.criticalCases}
+                    </h3>
                     <div className="mt-2 space-y-1 text-xs">
                       <div className="flex justify-between">
-                        <span className="text-slate-500">Avg Response Time:</span>
-                        <span className="font-semibold">{stats.averageResponseTime.toFixed(1)} min</span>
+                        <span className="text-slate-500">
+                          Avg Response Time:
+                        </span>
+                        <span className="font-semibold">
+                          {stats.averageResponseTime.toFixed(1)} min
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -611,12 +727,16 @@ export default function EmergencyCenterDashboard() {
               <CardContent className="p-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Inpatient</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">
+                      Inpatient
+                    </p>
                     <h3 className="text-3xl font-bold">{criticalCases}</h3>
                     <div className="mt-2 text-xs">
                       <div className="flex justify-between">
                         <span className="text-slate-500">Total Cases:</span>
-                        <span className="font-semibold">{stats.totalEmergencies}</span>
+                        <span className="font-semibold">
+                          {stats.totalEmergencies}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -631,12 +751,18 @@ export default function EmergencyCenterDashboard() {
               <CardContent className="p-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Connected Hospitals</p>
-                    <h3 className="text-3xl font-bold">{stats.connectedHospitals}</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">
+                      Connected Hospitals
+                    </p>
+                    <h3 className="text-3xl font-bold">
+                      {stats.connectedHospitals}
+                    </h3>
                     <div className="mt-2 text-xs">
                       <div className="flex justify-between">
                         <span className="text-slate-500">Available Beds:</span>
-                        <span className="font-semibold">{stats.availableHospitalBeds}</span>
+                        <span className="font-semibold">
+                          {stats.availableHospitalBeds}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -663,16 +789,43 @@ export default function EmergencyCenterDashboard() {
                 <ResponsiveContainer width="100%" height={200}>
                   <AreaChart data={monthlyTrendData}>
                     <defs>
-                      <linearGradient id="colorAdmissions" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                      <linearGradient
+                        id="colorAdmissions"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#3b82f6"
+                          stopOpacity={0.3}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#3b82f6"
+                          stopOpacity={0}
+                        />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="month" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fontSize: 10 }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={60}
+                    />
                     <YAxis tick={{ fontSize: 10 }} />
                     <Tooltip />
-                    <Area type="monotone" dataKey="admissions" stroke="#3b82f6" fillOpacity={1} fill="url(#colorAdmissions)" name="Total Cases" />
+                    <Area
+                      type="monotone"
+                      dataKey="admissions"
+                      stroke="#3b82f6"
+                      fillOpacity={1}
+                      fill="url(#colorAdmissions)"
+                      name="Total Cases"
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
@@ -693,10 +846,23 @@ export default function EmergencyCenterDashboard() {
                 <ResponsiveContainer width="100%" height={200}>
                   <LineChart data={monthlyTrendData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="month" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fontSize: 10 }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={60}
+                    />
                     <YAxis tick={{ fontSize: 10 }} />
                     <Tooltip />
-                    <Line type="monotone" dataKey="critical" stroke="#9333ea" strokeWidth={2} dot={{ r: 3 }} name="Critical Cases" />
+                    <Line
+                      type="monotone"
+                      dataKey="critical"
+                      stroke="#9333ea"
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                      name="Critical Cases"
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
@@ -717,27 +883,96 @@ export default function EmergencyCenterDashboard() {
                 <ResponsiveContainer width="100%" height={200}>
                   <AreaChart data={monthlyTrendData}>
                     <defs>
-                      <linearGradient id="colorCritical" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#dc2626" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#dc2626" stopOpacity={0}/>
+                      <linearGradient
+                        id="colorCritical"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#dc2626"
+                          stopOpacity={0.3}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#dc2626"
+                          stopOpacity={0}
+                        />
                       </linearGradient>
-                      <linearGradient id="colorUrgent" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                      <linearGradient
+                        id="colorUrgent"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#f59e0b"
+                          stopOpacity={0.3}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#f59e0b"
+                          stopOpacity={0}
+                        />
                       </linearGradient>
-                      <linearGradient id="colorNonUrgent" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      <linearGradient
+                        id="colorNonUrgent"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#10b981"
+                          stopOpacity={0.3}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#10b981"
+                          stopOpacity={0}
+                        />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="month" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fontSize: 10 }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={60}
+                    />
                     <YAxis tick={{ fontSize: 10 }} />
                     <Tooltip />
                     <Legend />
-                    <Area type="monotone" dataKey="critical" stroke="#dc2626" fillOpacity={1} fill="url(#colorCritical)" name="Critical" />
-                    <Area type="monotone" dataKey="urgent" stroke="#f59e0b" fillOpacity={1} fill="url(#colorUrgent)" name="Urgent" />
-                    <Area type="monotone" dataKey="nonUrgent" stroke="#10b981" fillOpacity={1} fill="url(#colorNonUrgent)" name="Non-Urgent" />
+                    <Area
+                      type="monotone"
+                      dataKey="critical"
+                      stroke="#dc2626"
+                      fillOpacity={1}
+                      fill="url(#colorCritical)"
+                      name="Critical"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="urgent"
+                      stroke="#f59e0b"
+                      fillOpacity={1}
+                      fill="url(#colorUrgent)"
+                      name="Urgent"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="nonUrgent"
+                      stroke="#10b981"
+                      fillOpacity={1}
+                      fill="url(#colorNonUrgent)"
+                      name="Non-Urgent"
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
@@ -751,15 +986,35 @@ export default function EmergencyCenterDashboard() {
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle className="text-lg font-semibold">Long Term Trends - by Month</CardTitle>
+              <CardTitle className="text-lg font-semibold">
+                Long Term Trends - by Month
+              </CardTitle>
               <div className="flex gap-2">
-                <Button variant={selectedPeriod === "6-months" ? "default" : "outline"} size="sm" onClick={() => setSelectedPeriod("6-months")}>
+                <Button
+                  variant={
+                    selectedPeriod === "6-months" ? "default" : "outline"
+                  }
+                  size="sm"
+                  onClick={() => setSelectedPeriod("6-months")}
+                >
                   6 Months
                 </Button>
-                <Button variant={selectedPeriod === "12-months" ? "default" : "outline"} size="sm" onClick={() => setSelectedPeriod("12-months")}>
+                <Button
+                  variant={
+                    selectedPeriod === "12-months" ? "default" : "outline"
+                  }
+                  size="sm"
+                  onClick={() => setSelectedPeriod("12-months")}
+                >
                   12 Months
                 </Button>
-                <Button variant={selectedPeriod === "24-months" ? "default" : "outline"} size="sm" onClick={() => setSelectedPeriod("24-months")}>
+                <Button
+                  variant={
+                    selectedPeriod === "24-months" ? "default" : "outline"
+                  }
+                  size="sm"
+                  onClick={() => setSelectedPeriod("24-months")}
+                >
                   24 Months
                 </Button>
               </div>
@@ -771,19 +1026,47 @@ export default function EmergencyCenterDashboard() {
                 <TabsTrigger value="admissions">Total Admissions</TabsTrigger>
                 <TabsTrigger value="severity">Case Severity</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="admissions">
                 {monthlyTrendData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
                     <AreaChart data={monthlyTrendData}>
                       <defs>
-                        <linearGradient id="colorAdmissions" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
+                        <linearGradient
+                          id="colorAdmissions"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="5%"
+                            stopColor="#06b6d4"
+                            stopOpacity={0.3}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor="#06b6d4"
+                            stopOpacity={0}
+                          />
                         </linearGradient>
-                        <linearGradient id="colorReadmissions" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        <linearGradient
+                          id="colorReadmissions"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="5%"
+                            stopColor="#3b82f6"
+                            stopOpacity={0.3}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor="#3b82f6"
+                            stopOpacity={0}
+                          />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -791,31 +1074,90 @@ export default function EmergencyCenterDashboard() {
                       <YAxis tick={{ fontSize: 10 }} />
                       <Tooltip />
                       <Legend />
-                      <Area type="monotone" dataKey="admissions" stroke="#06b6d4" fillOpacity={1} fill="url(#colorAdmissions)" name="Total Admissions" />
-                      <Area type="monotone" dataKey="readmissions" stroke="#3b82f6" strokeDasharray="5 5" fillOpacity={0.5} fill="url(#colorReadmissions)" name="Re-Admissions" />
+                      <Area
+                        type="monotone"
+                        dataKey="admissions"
+                        stroke="#06b6d4"
+                        fillOpacity={1}
+                        fill="url(#colorAdmissions)"
+                        name="Total Admissions"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="readmissions"
+                        stroke="#3b82f6"
+                        strokeDasharray="5 5"
+                        fillOpacity={0.5}
+                        fill="url(#colorReadmissions)"
+                        name="Re-Admissions"
+                      />
                     </AreaChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-center text-slate-500">No data available</p>
+                  <p className="text-center text-slate-500">
+                    No data available
+                  </p>
                 )}
               </TabsContent>
-              
+
               <TabsContent value="severity">
                 {monthlyTrendData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
                     <AreaChart data={monthlyTrendData}>
                       <defs>
-                        <linearGradient id="colorCritical" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#dc2626" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#dc2626" stopOpacity={0}/>
+                        <linearGradient
+                          id="colorCritical"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="5%"
+                            stopColor="#dc2626"
+                            stopOpacity={0.3}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor="#dc2626"
+                            stopOpacity={0}
+                          />
                         </linearGradient>
-                        <linearGradient id="colorUrgent" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                        <linearGradient
+                          id="colorUrgent"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="5%"
+                            stopColor="#f59e0b"
+                            stopOpacity={0.3}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor="#f59e0b"
+                            stopOpacity={0}
+                          />
                         </linearGradient>
-                        <linearGradient id="colorNonUrgent" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                        <linearGradient
+                          id="colorNonUrgent"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="5%"
+                            stopColor="#10b981"
+                            stopOpacity={0.3}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor="#10b981"
+                            stopOpacity={0}
+                          />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -823,13 +1165,36 @@ export default function EmergencyCenterDashboard() {
                       <YAxis tick={{ fontSize: 10 }} />
                       <Tooltip />
                       <Legend />
-                      <Area type="monotone" dataKey="critical" stroke="#dc2626" fillOpacity={1} fill="url(#colorCritical)" name="Critical" />
-                      <Area type="monotone" dataKey="urgent" stroke="#f59e0b" fillOpacity={1} fill="url(#colorUrgent)" name="Urgent" />
-                      <Area type="monotone" dataKey="nonUrgent" stroke="#10b981" fillOpacity={1} fill="url(#colorNonUrgent)" name="Non-Urgent" />
+                      <Area
+                        type="monotone"
+                        dataKey="critical"
+                        stroke="#dc2626"
+                        fillOpacity={1}
+                        fill="url(#colorCritical)"
+                        name="Critical"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="urgent"
+                        stroke="#f59e0b"
+                        fillOpacity={1}
+                        fill="url(#colorUrgent)"
+                        name="Urgent"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="nonUrgent"
+                        stroke="#10b981"
+                        fillOpacity={1}
+                        fill="url(#colorNonUrgent)"
+                        name="Non-Urgent"
+                      />
                     </AreaChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-center text-slate-500">No data available</p>
+                  <p className="text-center text-slate-500">
+                    No data available
+                  </p>
                 )}
               </TabsContent>
             </Tabs>
@@ -840,7 +1205,9 @@ export default function EmergencyCenterDashboard() {
         <Card>
           <CardHeader>
             <div className="flex flex-col sm:flex-row justify-between gap-4">
-              <CardTitle className="text-xl font-bold">Emergency Cases</CardTitle>
+              <CardTitle className="text-xl font-bold">
+                Emergency Cases
+              </CardTitle>
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                 <Input
@@ -867,40 +1234,53 @@ export default function EmergencyCenterDashboard() {
                   In Progress <Badge className="ml-1">{inProgressCases}</Badge>
                 </TabsTrigger>
                 <TabsTrigger value="completed">
-                  Completed <Badge className="ml-1">{stats?.completedEmergencies || 0}</Badge>
+                  Completed{" "}
+                  <Badge className="ml-1">
+                    {stats?.completedEmergencies || 0}
+                  </Badge>
                 </TabsTrigger>
               </TabsList>
 
-              {["all", "pending", "assigned", "in-progress", "completed"].map((tabValue) => (
-                <TabsContent key={tabValue} value={tabValue} className="space-y-4">
-                  {filteredCases.length === 0 ? (
-                    <div className="text-center py-12 text-slate-500">
-                      <Activity className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                      <p>No cases found</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {filteredCases
-                        .filter((c) => tabValue === "all" || c.status === tabValue)
-                        .map((emergencyCase) => (
-                          <ModernCaseCard
-                            key={emergencyCase.id}
-                            emergencyCase={emergencyCase}
-                            role="emergency-center"
-                            onViewDetails={handleViewDetails}
-                          />
-                        ))}
-                    </div>
-                  )}
-                </TabsContent>
-              ))}
+              {["all", "pending", "assigned", "in-progress", "completed"].map(
+                (tabValue) => (
+                  <TabsContent
+                    key={tabValue}
+                    value={tabValue}
+                    className="space-y-4"
+                  >
+                    {filteredCases.length === 0 ? (
+                      <div className="text-center py-12 text-slate-500">
+                        <Activity className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                        <p>No cases found</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {filteredCases
+                          .filter(
+                            (c) => tabValue === "all" || c.status === tabValue
+                          )
+                          .map((emergencyCase) => (
+                            <ModernCaseCard
+                              key={emergencyCase.id}
+                              emergencyCase={emergencyCase}
+                              role="emergency-center"
+                              onViewDetails={handleViewDetails}
+                            />
+                          ))}
+                      </div>
+                    )}
+                  </TabsContent>
+                )
+              )}
             </Tabs>
           </CardContent>
         </Card>
 
         {/* Footer */}
         <div className="text-center text-sm text-slate-500">
-          <p>A Constellation Analytics development by Emergency Response System</p>
+          <p>
+            A Constellation Analytics development by Emergency Response System
+          </p>
         </div>
       </div>
 
@@ -909,14 +1289,15 @@ export default function EmergencyCenterDashboard() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>รายละเอียดเคส #{selectedCase?.id}</DialogTitle>
-            <DialogDescription>
+            <div className="mt-2 space-y-4">
               {selectedCase && (
                 <div className="space-y-4">
                   <div>
                     <strong>ประเภทฉุกเฉิน:</strong> {selectedCase.emergencyType}
                   </div>
                   <div>
-                    <strong>คำอธิบายเต็ม:</strong> {selectedCase.descriptionFull}
+                    <strong>คำอธิบายเต็ม:</strong>{" "}
+                    {selectedCase.descriptionFull}
                   </div>
                   <div>
                     <strong>ระดับความรุนแรง:</strong> {selectedCase.grade}
@@ -931,7 +1312,9 @@ export default function EmergencyCenterDashboard() {
                     <strong>เบอร์ติดต่อ:</strong> {selectedCase.contactNumber}
                   </div>
                   <div>
-                    <strong>สถานที่:</strong> {selectedCase.location.address} (Lat: {selectedCase.location.coordinates.lat}, Lng: {selectedCase.location.coordinates.lng})
+                    <strong>สถานที่:</strong> {selectedCase.location.address}{" "}
+                    (Lat: {selectedCase.location.coordinates.lat}, Lng:{" "}
+                    {selectedCase.location.coordinates.lng})
                   </div>
                   {selectedCase.assignedTo && (
                     <div>
@@ -947,11 +1330,12 @@ export default function EmergencyCenterDashboard() {
                     </ul>
                   </div>
                   <div>
-                    <strong>รายงานเมื่อ:</strong> {new Date(selectedCase.reportedAt).toLocaleString('th-TH')}
+                    <strong>รายงานเมื่อ:</strong>{" "}
+                    {new Date(selectedCase.reportedAt).toLocaleString("th-TH")}
                   </div>
                 </div>
               )}
-            </DialogDescription>
+            </div>
           </DialogHeader>
         </DialogContent>
       </Dialog>
