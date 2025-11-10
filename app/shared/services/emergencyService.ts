@@ -2,6 +2,7 @@
 import { getAuthHeaders } from "@lib/utils";
 import { normalizeCaseData } from "../utils/dataNormalization";
 import { EmergencyCase } from "../types";
+import { Report } from "@/shared/types";
 
 export const fetchActiveEmergencies = async (): Promise<EmergencyCase[]> => {
   const headers = getAuthHeaders();
@@ -35,4 +36,25 @@ export const assignCase = async (caseId: string, hospitalId: string): Promise<an
     throw new Error(`ไม่สามารถมอบหมายเคส: ${response.statusText} (${response.status}) - ${errorText}`);
   }
   return response.json();
+};
+
+export const fetchReports = async (): Promise<Report[]> => {
+  const headers = getAuthHeaders();
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dashboard/active-emergencies`, {
+    headers,
+  });
+  if (!response.ok) throw new Error(`Failed to fetch reports: ${response.statusText}`);
+  const data = await response.json();
+  return data.map((emergency: any) => ({
+    id: emergency.id,
+    title: emergency.title || `Emergency Case ${emergency.id}`,
+    type: emergency.emergencyType || emergency.type || "emergency",
+    date: emergency.reportedAt || emergency.createdAt,
+    stats: {
+      severity: Number(emergency.medicalInfo?.severity) || 0,
+      patientName: `${emergency.patient?.firstName || ""} ${emergency.patient?.lastName || ""}`.trim() || "Unknown",
+      status: (emergency.status || "pending").toLowerCase(),
+    },
+    details: emergency,
+  }));
 };

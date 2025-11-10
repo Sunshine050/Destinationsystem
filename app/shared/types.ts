@@ -37,7 +37,7 @@ export interface EmergencyCase {
   descriptionFull: string;
   status: "pending" | "assigned" | "in-progress" | "completed" | "cancelled";
   grade: "CRITICAL" | "URGENT" | "NON_URGENT" | "UNKNOWN";
-  severity: 1 | 2 | 3 | 4; // ✅ เพิ่มเพื่อรองรับระดับความรุนแรง
+  severity: 1 | 2 | 3 | 4; // ✅ รองรับระดับความรุนแรง
   reportedAt: string;
   patientName: string;
   contactNumber: string;
@@ -72,7 +72,6 @@ export interface Hospital {
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }
-
 
 // ==============================
 // 🔍 FILTER STATE
@@ -141,17 +140,74 @@ export interface MonthlyTrendData {
 // ==============================
 // 🎨 SUPPORT MAPS (OPTIONAL)
 // ==============================
-// ใช้ใน component เพื่อหลีกเลี่ยง error "UNKNOWN"
 export const gradeColors: Record<EmergencyCase["grade"], string> = {
   CRITICAL: "#ef4444", // แดง
   URGENT: "#f97316",   // ส้ม
   NON_URGENT: "#22c55e", // เขียว
-  UNKNOWN: "#9ca3af",   // เทา (เพิ่มไว้กันพัง)
+  UNKNOWN: "#9ca3af",   // เทา (สำรอง)
 };
 
 export const gradeLabels: Record<EmergencyCase["grade"], string> = {
   CRITICAL: "วิกฤติ",
   URGENT: "เร่งด่วน",
   NON_URGENT: "ไม่เร่งด่วน",
-  UNKNOWN: "ไม่ระบุ", // เพิ่มไว้รองรับข้อมูลที่ไม่ครบ
+  UNKNOWN: "ไม่ระบุ",
 };
+
+export interface Report {
+  id: string;
+  title: string;
+  type: string;
+  date: string;
+  stats: {
+    severity?: number;
+    patientName?: string;
+    status?: string;
+  };
+  details?: any;
+}
+
+export interface Filters {
+  status: string;
+  severity: string;
+  date: string;
+}
+
+// ==============================
+// เพิ่ม Types ที่คุณร้องขอ
+// ==============================
+
+export interface NotificationSettings {
+  emergencyAlerts: boolean;
+  statusUpdates: boolean;
+  systemNotifications: boolean;
+  soundEnabled: boolean;
+  emailNotifications: boolean;
+  smsNotifications: boolean;
+}
+
+export interface SystemSettings {
+  language: string;
+  timeZone: string;
+  dateFormat: string;
+  mapProvider: string;
+  autoRefreshInterval: string;
+}
+
+export interface CommunicationSettings {
+  primaryContactNumber: string;
+  backupContactNumber: string;
+  emergencyEmail: string;
+  broadcastChannel: string;
+}
+
+export interface ProfileSettings {
+  firstName: string;
+  lastName: string;
+  phone?: string;
+}
+
+export interface EmergencySettings {
+  defaultRadius: number;
+  minUrgencyLevel: "CRITICAL" | "URGENT" | "NON_URGENT";
+}

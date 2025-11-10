@@ -1,7 +1,7 @@
 // app/shared/components/StatsCards.tsx
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
-import { Activity, Clock, AlertTriangle, Hospital, Building2, Bed, Users } from "lucide-react";
+import { Activity, Clock, AlertTriangle, Hospital, Building2, Bed, Users, CheckCircle, FileText } from "lucide-react";
 import { DashboardStats } from "@/shared/types";
 
 // ==============================
@@ -160,6 +160,50 @@ export const HospitalStatsCards: React.FC<{ stats: HospitalStats }> = ({ stats }
       <CardContent className="pt-0">
         <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.activeHospitals}</div>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">โรงพยาบาลใช้งานได้</p>
+      </CardContent>
+    </Card>
+  </div>
+);
+
+export const ReportsStatsCards = ({ stats }: { stats: { total: number; pending: number; critical: number; completed: number; } }) => (
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <Card className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-slate-800 shadow-md rounded-xl overflow-hidden">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm font-medium text-blue-700 dark:text-blue-300">รวมทั้งหมด</p>
+          <FileText className="h-4 w-4 text-blue-500" />
+        </div>
+        <h3 className="text-2xl font-bold">{stats.total}</h3>
+      </CardContent>
+    </Card>
+
+    <Card className="bg-gradient-to-br from-amber-50 to-white dark:from-amber-900/20 dark:to-slate-800 shadow-md rounded-xl overflow-hidden">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm font-medium text-amber-700 dark:text-amber-300">รอการดำเนินการ</p>
+          <Clock className="h-4 w-4 text-amber-500" />
+        </div>
+        <h3 className="text-2xl font-bold">{stats.pending}</h3>
+      </CardContent>
+    </Card>
+
+    <Card className="bg-gradient-to-br from-red-50 to-white dark:from-red-900/20 dark:to-slate-800 shadow-md rounded-xl overflow-hidden">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm font-medium text-red-700 dark:text-red-300">วิกฤต</p>
+          <AlertTriangle className="h-4 w-4 text-red-500" />
+        </div>
+        <h3 className="text-2xl font-bold">{stats.critical}</h3>
+      </CardContent>
+    </Card>
+
+    <Card className="bg-gradient-to-br from-green-50 to-white dark:from-green-900/20 dark:to-slate-800 shadow-md rounded-xl overflow-hidden">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm font-medium text-green-700 dark:text-green-300">เสร็จสิ้น</p>
+          <CheckCircle className="h-4 w-4 text-green-500" />
+        </div>
+        <h3 className="text-2xl font-bold">{stats.completed}</h3>
       </CardContent>
     </Card>
   </div>

@@ -28,3 +28,21 @@ export const markAllAsRead = async (): Promise<void> => {
   });
   if (!response.ok) throw new Error("ไม่สามารถทำการแจ้งเตือนทั้งหมด: ${response.statusText}");
 };
+
+export const markNotificationAsRead = async (id: string): Promise<void> => {
+  const headers = getAuthHeaders();
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications/${id}/read`, {
+    method: "PUT",
+    headers,
+  });
+  if (!response.ok) throw new Error("Failed to mark notification as read");
+};
+
+export const markAllNotificationsAsRead = async (): Promise<void> => {
+  const headers = getAuthHeaders();
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications/read-all`, {
+    method: "PUT",
+    headers,
+  });
+  if (!response.ok) throw new Error("Failed to mark all notifications as read");
+};
