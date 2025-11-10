@@ -2,6 +2,7 @@
 // API for user profile/settings
 import { getAuthHeaders } from "@lib/utils";
 import { NotificationSettings, SystemSettings, CommunicationSettings, ProfileSettings, EmergencySettings } from "@/shared/types";
+import { HospitalSettings } from "@/shared/types";
 
 export const fetchUserProfile = async (): Promise<any> => {
   const headers = getAuthHeaders();

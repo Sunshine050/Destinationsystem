@@ -1,5 +1,6 @@
 // app/shared/types.ts
 
+
 // ==============================
 // 🚨 EMERGENCY CASE TYPES
 // ==============================
@@ -260,4 +261,13 @@ export interface RescueTeam {
   lastActive: string;
 }
 
-// ... existing
+export interface HospitalSettings {
+  hospitalName: string;
+  address: string;
+  primaryContact: string;
+  emergencyContact: string;
+  totalBeds: number;
+  icuBeds: number;
+  emergencyCapacity: number;
+  ambulanceCount: number;
+}
