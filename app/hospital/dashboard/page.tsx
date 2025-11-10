@@ -1,258 +1,56 @@
 "use client";
 
 import { useState } from "react";
+import { useHospitalDashboard } from "./hooks/useHospitalDashboard";
+import { useAuth } from "@/shared/hooks/useAuth";
+import { useNotifications } from "@/shared/hooks/useNotifications";
 import DashboardLayout from "@components/dashboard/dashboard-layout";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@components/ui/card";
 import { Button } from "@components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/ui/tabs";
-import {
-  AlertTriangle,
-  Ambulance,
-  Clock,
-  Heart,
-  Users,
-  Search,
-  Activity,
-} from "lucide-react";
-import CaseCard from "@components/dashboard/case-card";
+import { Search } from "lucide-react";
 import { Input } from "@components/ui/input";
 import { Badge } from "@components/ui/badge";
-import { useToast } from "@/shared/hooks/use-toast";
-import { fetchHospitals } from "@/shared/services/emergencyService";
-
-// Emergency cases sample data - hospital view
-const hospitalCases = [
-  {
-    id: "ER-2305-002",
-    title: "Unconscious Person at Central Plaza",
-    status: "assigned",
-    severity: 2,
-    reportedAt: "2025-03-15T10:05:43",
-    patientName: "Wanida Rakdee",
-    contactNumber: "089-876-5432",
-    emergencyType: "Unconsciousness",
-    location: {
-      address: "Central Plaza, 5th Floor, Food Court",
-      coordinates: { lat: 13.8765, lng: 100.4321 },
-    },
-    assignedTo: "Thonburi Hospital",
-    description:
-      "Patient suddenly collapsed while eating. No visible injuries.",
-    symptoms: ["Unconsciousness", "Pallor"],
-  },
-  {
-    id: "ER-2305-003",
-    title: "Drowning at Blue Beach Resort",
-    status: "in-progress",
-    severity: 4,
-    reportedAt: "2025-03-15T11:17:22",
-    patientName: "Michael Johnson",
-    contactNumber: "062-345-6789",
-    emergencyType: "Drowning",
-    location: {
-      address: "Blue Beach Resort, Koh Samui",
-      coordinates: { lat: 9.5678, lng: 100.0123 },
-    },
-    assignedTo: "Samui International Hospital",
-    description:
-      "Tourist found unconscious in hotel swimming pool. CPR in progress by hotel staff.",
-    symptoms: ["Unconsciousness", "Not Breathing", "Cyanosis"],
-  },
-  {
-    id: "ER-2305-004",
-    title: "Elderly Fall at Bangkae Home",
-    status: "completed",
-    severity: 2,
-    reportedAt: "2025-03-15T08:45:00",
-    patientName: "Prasert Suksawat",
-    contactNumber: "081-987-6543",
-    emergencyType: "Fall",
-    location: {
-      address: "Bangkae Elderly Home, 123 Phetkasem Rd.",
-      coordinates: { lat: 13.7123, lng: 100.4567 },
-    },
-    assignedTo: "Siriraj Hospital",
-    description:
-      "Elderly male fell in bathroom. Complaining of hip pain and unable to stand.",
-    symptoms: ["Hip Pain", "Limited Mobility", "Bruising"],
-  },
-  {
-    id: "ER-2305-005",
-    title: "Stroke Symptoms at Office Building",
-    status: "assigned",
-    severity: 3,
-    reportedAt: "2025-03-15T12:30:15",
-    patientName: "Somying Jaidee",
-    contactNumber: "085-123-4567",
-    emergencyType: "Stroke",
-    location: {
-      address: "SCB Park Plaza, 12th Floor, Ratchadapisek Rd.",
-      coordinates: { lat: 13.8123, lng: 100.5678 },
-    },
-    assignedTo: "Thonburi Hospital",
-    description:
-      "Female patient with sudden facial drooping and slurred speech during meeting.",
-    symptoms: ["Facial Drooping", "Slurred Speech", "Arm Weakness"],
-  },
-];
-
-// Define counts for dashboard stats
-const stats = {
-  assigned: hospitalCases.filter((c) => c.status === "assigned").length,
-  inProgress: hospitalCases.filter((c) => c.status === "in-progress").length,
-  completed: hospitalCases.filter((c) => c.status === "completed").length,
-  critical: hospitalCases.filter((c) => c.severity === 4).length,
-  total: hospitalCases.length,
-  beds: {
-    total: 120,
-    occupied: 82,
-    available: 38,
-    icu: {
-      total: 15,
-      occupied: 12,
-      available: 3,
-    },
-  },
-};
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/ui/tabs";
+import CaseCard from "@components/dashboard/case-card";
+import { HospitalDashboardCards } from "./components/HospitalDashboardCards";
 
 export default function HospitalDashboard() {
-  const [cases, setCases] = useState(hospitalCases);
-  const [searchQuery, setSearchQuery] = useState("");
-  const { toast } = useToast();
+  useAuth();
+  const { notifications } = useNotifications();
 
-  // Filter cases by search query
-  const filteredCases = cases.filter(
-    (c) =>
-      c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.emergencyType.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const {
+    cases: filteredCases,
+    stats,
+    searchQuery,
+    setSearchQuery,
+    handleTransferCase,
+    handleCancelCase,
+    setCases,
+    fetchHospitals,
+  } = useHospitalDashboard();
 
-  // Handle case transfer (change status and assignedTo)
-  const handleTransferCase = (caseId: string) => {
-    setCases((prev) =>
-      prev.map((c) =>
-        c.id === caseId
-          ? { ...c, status: "in-progress", assignedTo: "Rescue Team Alpha" }
-          : c
-      )
-    );
-    toast({
-      title: "Case transferred",
-      description: `Case ${caseId} has been assigned to Rescue Team Alpha.`,
-    });
-  };
-
-  // Handle case cancel (set status to cancelled)
-  const handleCancelCase = (caseId: string) => {
-    setCases((prev) =>
-      prev.map((c) => (c.id === caseId ? { ...c, status: "cancelled" } : c))
-    );
-    toast({
-      title: "Case cancelled",
-      description: `Case ${caseId} has been cancelled.`,
-    });
-  };
-
-  // Dummy props for DashboardLayout if needed (add notifications etc.)
-  // If DashboardLayout requires, add here as props.
+  const [tabValue, setTabValue] = useState("all");
 
   return (
-    <DashboardLayout role="hospital" notifications={[]} unreadCount={0} onMarkAsRead={() => {}} onMarkAllAsRead={() => {}}>
+    <DashboardLayout
+      role="hospital"
+      notifications={notifications}
+      unreadCount={0}
+      onMarkAsRead={() => {}}
+      onMarkAllAsRead={() => {}}
+    >
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold">Hospital Dashboard</h1>
-            <p className="text-slate-500 dark:text-slate-400">
-              Monitor emergency cases and hospital resources
-            </p>
+            <p className="text-slate-500 dark:text-slate-400">Monitor emergency cases and hospital resources</p>
           </div>
           <div className="flex gap-2">
             <Button>Hospital Status Update</Button>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                Assigned Cases
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold">{stats.assigned}</div>
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-full">
-                  <Clock className="h-5 w-5 text-blue-600 dark:text-blue-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <HospitalDashboardCards stats={stats} />
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                In Progress
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold">{stats.inProgress}</div>
-                <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-full">
-                  <Activity className="h-5 w-5 text-purple-600 dark:text-purple-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                Critical Cases
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold">{stats.critical}</div>
-                <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-full">
-                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                Available Beds
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold">{stats.beds.available}</div>
-                <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-full">
-                  <Heart className="h-5 w-5 text-green-600 dark:text-green-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Resource Overview */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* ...ส่วน Resource Overview เหมือนเดิม... */}
-        </div>
-
-        {/* Emergency Cases List */}
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <h2 className="text-xl font-bold">Emergency Cases</h2>
@@ -268,7 +66,7 @@ export default function HospitalDashboard() {
             </div>
           </div>
 
-          <Tabs defaultValue="all">
+          <Tabs value={tabValue} onValueChange={setTabValue}>
             <TabsList>
               <TabsTrigger value="all">All Cases</TabsTrigger>
               <TabsTrigger value="assigned">
@@ -282,34 +80,28 @@ export default function HospitalDashboard() {
               </TabsTrigger>
             </TabsList>
 
-            {["all", "assigned", "in-progress", "completed"].map((tabValue) => (
-              <TabsContent
-                key={tabValue}
-                value={tabValue}
-                className="space-y-4"
-              >
-                {filteredCases.length === 0 ? (
+            {["all", "assigned", "in-progress", "completed"].map((tab) => (
+              <TabsContent key={tab} value={tab} className="space-y-4">
+                {filteredCases.filter((c) => tab === "all" || c.status === tab).length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-slate-500 dark:text-slate-400">
-                      No cases found
-                    </p>
+                    <p className="text-slate-500 dark:text-slate-400">No cases found</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {filteredCases
-                      .filter(
-                        (c) => tabValue === "all" || c.status === tabValue
-                      )
+                      .filter((c) => tab === "all" || c.status === tab)
                       .map((emergencyCase) => (
                         <CaseCard
                           key={emergencyCase.id}
                           {...emergencyCase}
                           severity={emergencyCase.severity as 1 | 2 | 3 | 4}
-                          status={emergencyCase.status as any}
-                          grade={emergencyCase.severity === 4 ? "CRITICAL" : emergencyCase.severity >= 2 ? "URGENT" : "NON_URGENT"}
-                          onTransfer={() =>
-                            handleTransferCase(emergencyCase.id)
-                          }
+                          status={emergencyCase.status as
+                            | "pending"
+                            | "assigned"
+                            | "in-progress"
+                            | "completed"
+                            | "cancelled"}
+                          onTransfer={() => handleTransferCase(emergencyCase.id)}
                           onCancel={() => handleCancelCase(emergencyCase.id)}
                           role="hospital"
                           setCases={setCases}

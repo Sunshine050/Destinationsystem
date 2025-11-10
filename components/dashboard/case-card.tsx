@@ -45,7 +45,7 @@ export interface CaseCardProps {
   description: string;
   descriptionFull?: string;
   status: "pending" | "assigned" | "in-progress" | "completed" | "cancelled";
-  grade: "CRITICAL" | "URGENT" | "NON_URGENT";
+  grade: "CRITICAL" | "URGENT" | "NON_URGENT" | "UNKNOWN";
   severity?: 1 | 2 | 3 | 4;
   onTransfer?: () => void;
   onCancel?: () => void;
