@@ -13,9 +13,9 @@ import {
   Loader2,
   Info,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@components/ui/button";
+import { Input } from "@components/ui/input";
+import { Label } from "@components/ui/label";
 import {
   Card,
   CardContent,
@@ -23,11 +23,11 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useToast } from "@/app/shared/hooks/use-toast";
-import { Separator } from "@/components/ui/separator";
+} from "@components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/ui/tabs";
+import { Alert, AlertDescription } from "@components/ui/alert";
+import { useToast } from "@/shared/hooks/use-toast";
+import { Separator } from "@components/ui/separator";
 import axios from "axios";
 
 interface FormData {

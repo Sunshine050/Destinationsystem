@@ -11,4 +11,25 @@ export const getAuthHeaders = () => {
   return { Authorization: `Bearer ${token}` };
 };
 
-// ... existing cn, etc.
+// app/shared/types.ts
+// Add to existing (from cases/dashboard)
+export interface Hospital {
+  id: string;
+  name: string;
+  type: string;
+  address: string;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  contactPhone: string;
+  contactEmail: string | null;
+  status: "ACTIVE" | "INACTIVE" | "BUSY" | string;
+  medicalInfo: any | null;
+  createdAt: string;
+  updatedAt: string;
+  availableBeds: number | null;
+}
+
+// ... existing
