@@ -93,7 +93,7 @@ export interface MapLocation {
   address: string;
   description: string;
   patientName: string;
-  status: EmergencyCase["status"];
+  status: string;
 }
 
 // ==============================
@@ -211,3 +211,10 @@ export interface EmergencySettings {
   defaultRadius: number;
   minUrgencyLevel: "CRITICAL" | "URGENT" | "NON_URGENT";
 }
+// app/shared/types.ts
+// Existing EmergencyCase works for hospital (reuse)
+export interface HospitalCase extends EmergencyCase {
+  // Optional hospital-specific (e.g., transferTo: string)
+}
+
+// ... existing

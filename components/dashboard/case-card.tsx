@@ -10,7 +10,7 @@ import {
   Calendar,
   ChevronsRight,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@components/ui/button";
 import {
   Card,
   CardContent,
@@ -18,8 +18,8 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+} from "@components/ui/card";
+import { Badge } from "@components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -28,17 +28,17 @@ import {
   DialogTitle,
   DialogFooter,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
+} from "@components/ui/dialog";
+import { Separator } from "@components/ui/separator";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { useToast } from "@/app/shared/hooks/use-toast";
-import { cn } from "@/lib/utils";
+} from "@components/ui/select";
+import { useToast } from "@/shared/hooks/use-toast";
+import { cn } from "@lib/utils";
 
 export interface CaseCardProps {
   id: string;
@@ -46,6 +46,9 @@ export interface CaseCardProps {
   descriptionFull?: string;
   status: "pending" | "assigned" | "in-progress" | "completed" | "cancelled";
   grade: "CRITICAL" | "URGENT" | "NON_URGENT";
+  severity?: 1 | 2 | 3 | 4;
+  onTransfer?: () => void;
+  onCancel?: () => void;
   reportedAt: string;
   patientName: string;
   contactNumber: string;
@@ -62,7 +65,7 @@ export interface CaseCardProps {
   symptoms?: string[] | null;
   role: "emergency-center" | "hospital" | "rescue";
   setCases: React.Dispatch<React.SetStateAction<any[]>>;
-  fetchHospitals: () => Promise<void>;
+  fetchHospitals: () => Promise<any[]>;
 }
 
 interface Hospital {
@@ -104,18 +107,7 @@ export default function CaseCard({
   useEffect(() => {
     const loadHospitals = async () => {
       try {
-        const token = localStorage.getItem("access_token");
-        if (!token) throw new Error("No access token");
-
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/hospitals`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        if (!response.ok)
-          throw new Error(`Failed to fetch hospitals: ${response.statusText}`);
-        const data = await response.json();
+        const data = await fetchHospitals();
         setHospitals(
           data.map((h: any) => ({
             id: h.id,
@@ -133,7 +125,7 @@ export default function CaseCard({
       }
     };
     loadHospitals();
-  }, [toast]);
+  }, [fetchHospitals, toast]);
 
   // ฟังก์ชันมอบหมายเคส
   const handleAssign = async () => {
@@ -152,7 +144,7 @@ export default function CaseCard({
       const hospital = hospitals.find((h) => h.id === selectedHospital);
       if (!hospital) throw new Error("Hospital not found");
       if (hospital.availableBeds === null || hospital.availableBeds <= 0) {
-        throw new Error("No available beds in the selected hospital");
+        throw new Error("ไม่มีเตียงว่างในโรงพยาบาลที่เลือก");
       }
 
       const response = await fetch(
@@ -170,7 +162,7 @@ export default function CaseCard({
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(
-          `Failed to assign case: ${response.statusText} (${response.status}) - ${errorText}`
+          `ไม่สามารถมอบหมายเคสได้: ${response.statusText} (${response.status}) - ${errorText}`
         );
       }
 
@@ -183,6 +175,9 @@ export default function CaseCard({
       // รีเฟรชข้อมูลเคสและโรงพยาบาล
       const fetchData = async () => {
         try {
+          const token = localStorage.getItem("access_token");
+          if (!token) throw new Error("No access token");
+
           const emergenciesRes = await fetch(
             `${process.env.NEXT_PUBLIC_API_URL}/dashboard/active-emergencies`,
             {
@@ -191,7 +186,7 @@ export default function CaseCard({
           );
           if (!emergenciesRes.ok)
             throw new Error(
-              `Failed to fetch emergencies: ${emergenciesRes.statusText}`
+              `ไม่สามารถดึงข้อมูลเคสได้: ${emergenciesRes.statusText}`
             );
           const emergenciesData = await emergenciesRes.json();
           const updatedCases = emergenciesData.map((item: any) => ({
@@ -485,9 +480,7 @@ export default function CaseCard({
                 <>
                   <Separator />
                   <div className="space-y-2">
-                    <p className="text-sm font-medium">
-                      Assignment Information
-                    </p>
+                    <p className="text-sm font-medium">Assignment Information</p>
                     <div className="text-sm">
                       <strong>Assigned To:</strong> {assignedTo}
                     </div>

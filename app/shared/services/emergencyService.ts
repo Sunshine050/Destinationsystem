@@ -58,3 +58,16 @@ export const fetchReports = async (): Promise<Report[]> => {
     details: emergency,
   }));
 };
+
+export const transferCase = async (caseId: string, team: string): Promise<void> => {
+  const headers = getAuthHeaders();
+  // Future: POST /hospital/cases/{id}/transfer { team }
+  // For sample: return Promise.resolve();
+  throw new Error("Implement API for transfer");
+};
+
+export const cancelCase = async (caseId: string): Promise<void> => {
+  const headers = getAuthHeaders();
+  // Future: PATCH /hospital/cases/{id}/cancel
+  throw new Error("Implement API for cancel");
+};

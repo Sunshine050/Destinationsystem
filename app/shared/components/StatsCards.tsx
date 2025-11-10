@@ -3,6 +3,7 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
 import { Activity, Clock, AlertTriangle, Hospital, Building2, Bed, Users, CheckCircle, FileText } from "lucide-react";
 import { DashboardStats } from "@/shared/types";
+import { Badge } from "@components/ui/badge";
 
 // ==============================
 // 📊 DASHBOARD STATS CARDS
@@ -111,100 +112,33 @@ export const StatsCards: React.FC<StatsCardsProps> = ({ stats, criticalCases = 0
 };
 
 // ==============================
-// 🏥 HOSPITAL STATS CARDS
+// 🏥 HOSPITAL STATS SUMMARY (ชื่อใหม่ HospitalStatusCards)
 // ==============================
-export interface HospitalStats {
-  totalHospitals: number;
-  totalAvailableBeds: number;
-  activeHospitals: number;
-}
-
-export const HospitalStatsCards: React.FC<{ stats: HospitalStats }> = ({ stats }) => (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    {/* Total Hospitals */}
-    <Card className="border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-slate-500 flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-blue-600" />
-          โรงพยาบาลทั้งหมด
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalHospitals}</div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">หน่วยที่เชื่อมต่อ</p>
-      </CardContent>
-    </Card>
-
-    {/* Available Beds */}
-    <Card className="border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-slate-500 flex items-center gap-2">
-          <Bed className="h-4 w-4 text-green-600" />
-          เตียงว่างทั้งหมด
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalAvailableBeds}</div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">เตียงพร้อมใช้งาน</p>
-      </CardContent>
-    </Card>
-
-    {/* Active Hospitals */}
-    <Card className="border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-slate-500 flex items-center gap-2">
-          <Users className="h-4 w-4 text-indigo-600" />
-          สถานะพร้อมรับ
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.activeHospitals}</div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">โรงพยาบาลใช้งานได้</p>
-      </CardContent>
-    </Card>
-  </div>
-);
-
-export const ReportsStatsCards = ({ stats }: { stats: { total: number; pending: number; critical: number; completed: number; } }) => (
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    <Card className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-slate-800 shadow-md rounded-xl overflow-hidden">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-medium text-blue-700 dark:text-blue-300">รวมทั้งหมด</p>
-          <FileText className="h-4 w-4 text-blue-500" />
-        </div>
-        <h3 className="text-2xl font-bold">{stats.total}</h3>
-      </CardContent>
-    </Card>
-
-    <Card className="bg-gradient-to-br from-amber-50 to-white dark:from-amber-900/20 dark:to-slate-800 shadow-md rounded-xl overflow-hidden">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-medium text-amber-700 dark:text-amber-300">รอการดำเนินการ</p>
-          <Clock className="h-4 w-4 text-amber-500" />
-        </div>
-        <h3 className="text-2xl font-bold">{stats.pending}</h3>
-      </CardContent>
-    </Card>
-
-    <Card className="bg-gradient-to-br from-red-50 to-white dark:from-red-900/20 dark:to-slate-800 shadow-md rounded-xl overflow-hidden">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-medium text-red-700 dark:text-red-300">วิกฤต</p>
-          <AlertTriangle className="h-4 w-4 text-red-500" />
-        </div>
-        <h3 className="text-2xl font-bold">{stats.critical}</h3>
-      </CardContent>
-    </Card>
-
-    <Card className="bg-gradient-to-br from-green-50 to-white dark:from-green-900/20 dark:to-slate-800 shadow-md rounded-xl overflow-hidden">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-medium text-green-700 dark:text-green-300">เสร็จสิ้น</p>
-          <CheckCircle className="h-4 w-4 text-green-500" />
-        </div>
-        <h3 className="text-2xl font-bold">{stats.completed}</h3>
-      </CardContent>
-    </Card>
+export const HospitalStatusCards = ({ stats }: { stats: { total: number; assigned: number; critical: number; inProgress: number; }; }) => (
+  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div className="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total</p>
+        <Badge className="bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200">{stats.total}</Badge>
+      </div>
+    </div>
+    <div className="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Assigned</p>
+        <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-500">{stats.assigned}</Badge>
+      </div>
+    </div>
+    <div className="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Critical</p>
+        <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500">{stats.critical}</Badge>
+      </div>
+    </div>
+    <div className="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">In Progress</p>
+        <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-500">{stats.inProgress}</Badge>
+      </div>
+    </div>
   </div>
 );
