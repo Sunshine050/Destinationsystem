@@ -240,4 +240,24 @@ export interface HospitalReport {
   };
 }
 
+// app/shared/types.ts
+// Add to existing
+export interface RescueTeam {
+  id: string;
+  name: string;
+  status: 'available' | 'on-mission' | 'standby' | 'offline';
+  members: number;
+  location: {
+    address: string;
+    coordinates: {
+      lat: number;
+      lng: number;
+    };
+  };
+  contact: string;
+  vehicle: string;
+  activeMission?: string;
+  lastActive: string;
+}
+
 // ... existing

@@ -58,3 +58,26 @@ export const getUnitStatusLabel = (status: string): string => {
     default: return status;
   }
 };
+
+
+export const getStatusColor = (status: string): string => {
+  switch (status) {
+    case 'available': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500';
+    case 'on-mission': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+    case 'standby': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400';
+    case 'offline': return 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400';
+    // Existing cases (ACTIVE/BUSY for hospitals, pending/assigned for emergencies)...
+    default: return 'bg-slate-100 text-slate-800';
+  }
+};
+
+export const getStatusLabel = (status: string): string => {
+  switch (status) {
+    case 'available': return 'Available';
+    case 'on-mission': return 'On Mission';
+    case 'standby': return 'On Standby';
+    case 'offline': return 'Offline';
+    // Existing labels...
+    default: return status;
+  }
+};
