@@ -6,11 +6,12 @@ import { useHospitals } from "./hooks/useHospitals";
 import { useAuth } from "@/shared/hooks/useAuth";
 import DashboardLayout from "@components/dashboard/dashboard-layout";
 import { Input } from "@components/ui/input";
-import { Search, AlertTriangle } from "lucide-react";
+import { Search, AlertTriangle, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@components/ui/card";
 import { HospitalCard } from "./components/HospitalCard";
-import { HospitalStatsCards } from "@/shared/components/StatsCards";
-import { Loader2 } from "lucide-react";
+
+// ✅ แก้ path ให้ถูกต้อง (ถอยขึ้นสองระดับถึง hospital/reports/components)
+import { HospitalReportsStatsCards as HospitalStatsCards } from "../../hospital/reports/components/HospitalReportsStatsCards";
 
 export default function HospitalsPage() {
   useAuth(); // Auto-redirect if no token
@@ -24,7 +25,6 @@ export default function HospitalsPage() {
     setSearchQuery,
     handleUpdateStatus,
     handleContactHospital,
-    // ใช้ชื่อเดียวกับที่คืนค่าใน hook เลย
     statusColors,
     getCaseStatusLabel,
     refetch,
@@ -81,6 +81,7 @@ export default function HospitalsPage() {
           </div>
         </div>
 
+        {/* ✅ ใช้ component ได้ถูกต้อง */}
         <HospitalStatsCards stats={stats} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
