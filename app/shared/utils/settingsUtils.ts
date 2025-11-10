@@ -71,3 +71,25 @@ export const DEFAULT_EMERGENCY_SETTINGS = {
   defaultRadius: 10,
   minUrgencyLevel: "URGENT",
 } as const;
+
+export const hospitalSettingsSchema = z.object({
+  hospitalName: z.string(),
+  address: z.string(),
+  primaryContact: z.string(),
+  emergencyContact: z.string(),
+  totalBeds: z.string(),
+  icuBeds: z.string(),
+  emergencyCapacity: z.string(),
+  ambulanceCount: z.string(),
+});
+
+export const DEFAULT_HOSPITAL_SETTINGS = {
+  hospitalName: "Thonburi Hospital",
+  address: "34/1 Itsaraphap Rd, Bangkok",
+  primaryContact: "+66 2 123 4567",
+  emergencyContact: "+66 2 234 5678",
+  totalBeds: "120",
+  icuBeds: "15",
+  emergencyCapacity: "30",
+  ambulanceCount: "8",
+} as const;

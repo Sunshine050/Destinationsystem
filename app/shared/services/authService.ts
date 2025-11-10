@@ -21,3 +21,13 @@ export const saveUserSettings = async (data: Partial<any>): Promise<void> => {
   });
   if (!response.ok) throw new Error("Failed to save settings");
 };
+
+export const saveHospitalSettings = async (data: HospitalSettings): Promise<void> => {
+  const headers = getAuthHeaders();
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/hospital/settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error("Failed to save hospital settings");
+};
