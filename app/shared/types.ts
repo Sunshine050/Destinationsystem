@@ -217,4 +217,27 @@ export interface HospitalCase extends EmergencyCase {
   // Optional hospital-specific (e.g., transferTo: string)
 }
 
+// app/shared/types.ts
+// Add to existing
+export interface HospitalReport {
+  id: number;
+  title: string;
+  type: string;
+  date: string;
+  stats: {
+    totalPatients?: number;
+    avgWaitTime?: number;
+    criticalCases?: number;
+    bedOccupancy?: number;
+    bedUtilization?: number;
+    staffUtilization?: number;
+    equipmentUsage?: number;
+    supplies?: number;
+    admissions?: number;
+    discharges?: number;
+    transfers?: number;
+    satisfaction?: number;
+  };
+}
+
 // ... existing
