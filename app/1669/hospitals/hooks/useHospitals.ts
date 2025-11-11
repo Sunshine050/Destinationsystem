@@ -2,10 +2,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { useToast } from "@/shared/hooks/use-toast";
 import { fetchHospitals, updateHospitalStatus } from "@/shared/services/hospitalService";
-// แก้ import ตามไฟล์ utils ที่แก้ไปแล้ว
 import { statusColors, getCaseStatusLabel } from "@/shared/utils/statusUtils";
 import { Hospital } from "@/shared/types";
 import { webSocketClient } from "@lib/websocket";
+
+// ✅ import enum ให้ใช้ตรงจาก hospitalService
+import { HospitalStatus } from "@/shared/services/hospitalService";
 
 export const useHospitals = () => {
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
@@ -36,16 +38,25 @@ export const useHospitals = () => {
       setUpdatingId(hospitalId);
       const hospital = hospitals.find((h) => h.id === hospitalId);
       if (!hospital) return;
-      // สถานะ "ACTIVE" และ "BUSY" อิงจากข้อมูลจริง ปรับได้ถ้าต้องการ
-      const newStatus = hospital.status === "ACTIVE" ? "BUSY" : "ACTIVE";
+
+      // ✅ ใช้ enum HospitalStatus แทน string
+      const newStatus =
+        hospital.status === HospitalStatus.ACTIVE
+          ? HospitalStatus.MAINTENANCE // หรือ BUSY ถ้ามีใน enum
+          : HospitalStatus.ACTIVE;
+
       await updateHospitalStatus(hospitalId, newStatus);
+
       setHospitals((prev) =>
-        prev.map((h) => (h.id === hospitalId ? { ...h, status: newStatus } : h))
+        prev.map((h) =>
+          h.id === hospitalId ? { ...h, status: newStatus } : h
+        )
       );
+
       toast({
         title: "อัปเดตสถานะสำเร็จ",
         description: `สถานะโรงพยาบาล ${hospital.name} เปลี่ยนเป็น ${
-          newStatus === "ACTIVE" ? "ใช้งานได้" : "ยุ่ง"
+          newStatus === HospitalStatus.ACTIVE ? "ใช้งานได้" : "อยู่ระหว่างบำรุงรักษา"
         }`,
       });
     } catch (error) {
@@ -86,12 +97,10 @@ export const useHospitals = () => {
   const filteredHospitals = useMemo(() => {
     return hospitals.filter((h) => {
       const query = searchQuery.toLowerCase();
-
       const nameMatch = h.name.toLowerCase().includes(query);
       const addressMatch = (h.address ?? "").toLowerCase().includes(query);
       const cityMatch = h.city ? h.city.toLowerCase().includes(query) : false;
       const phoneMatch = h.contactPhone ? h.contactPhone.includes(query) : false;
-
       return nameMatch || addressMatch || cityMatch || phoneMatch;
     });
   }, [hospitals, searchQuery]);
@@ -99,8 +108,13 @@ export const useHospitals = () => {
   const stats = useMemo(
     () => ({
       totalHospitals: hospitals.length,
-      totalAvailableBeds: hospitals.reduce((sum, h) => sum + (h.availableBeds ?? 0), 0),
-      activeHospitals: hospitals.filter((h) => h.status === "ACTIVE").length,
+      totalAvailableBeds: hospitals.reduce(
+        (sum, h) => sum + (h.availableBeds ?? 0),
+        0
+      ),
+      activeHospitals: hospitals.filter(
+        (h) => h.status === HospitalStatus.ACTIVE
+      ).length,
     }),
     [hospitals]
   );
@@ -131,7 +145,6 @@ export const useHospitals = () => {
     setSearchQuery,
     handleUpdateStatus,
     handleContactHospital,
-    // เปลี่ยนส่งเป็น statusColors และ getCaseStatusLabel
     statusColors,
     getCaseStatusLabel,
     refetch: fetchData,

@@ -1,6 +1,5 @@
 // app/shared/types.ts
 
-
 // ==============================
 // 🚨 EMERGENCY CASE TYPES
 // ==============================
@@ -38,7 +37,7 @@ export interface EmergencyCase {
   descriptionFull: string;
   status: "pending" | "assigned" | "in-progress" | "completed" | "cancelled";
   grade: "CRITICAL" | "URGENT" | "NON_URGENT" | "UNKNOWN";
-  severity: 1 | 2 | 3 | 4; // ✅ รองรับระดับความรุนแรง
+  severity: 1 | 2 | 3 | 4;
   reportedAt: string;
   patientName: string;
   contactNumber: string;
@@ -72,6 +71,15 @@ export interface Hospital {
   medicalInfo?: Record<string, any>;
   createdAt?: string | Date;
   updatedAt?: string | Date;
+}
+
+// ==============================
+// 📈 REPORTS STATS
+// ==============================
+export interface ReportsStats {
+  totalHospitals: number;
+  totalAvailableBeds: number;
+  activeHospitals: number;
 }
 
 // ==============================
@@ -142,10 +150,10 @@ export interface MonthlyTrendData {
 // 🎨 SUPPORT MAPS (OPTIONAL)
 // ==============================
 export const gradeColors: Record<EmergencyCase["grade"], string> = {
-  CRITICAL: "#ef4444", // แดง
-  URGENT: "#f97316",   // ส้ม
-  NON_URGENT: "#22c55e", // เขียว
-  UNKNOWN: "#9ca3af",   // เทา (สำรอง)
+  CRITICAL: "#ef4444",
+  URGENT: "#f97316",
+  NON_URGENT: "#22c55e",
+  UNKNOWN: "#9ca3af",
 };
 
 export const gradeLabels: Record<EmergencyCase["grade"], string> = {
@@ -155,6 +163,9 @@ export const gradeLabels: Record<EmergencyCase["grade"], string> = {
   UNKNOWN: "ไม่ระบุ",
 };
 
+// ==============================
+// REPORT TYPES
+// ==============================
 export interface Report {
   id: string;
   title: string;
@@ -164,20 +175,41 @@ export interface Report {
     severity?: number;
     patientName?: string;
     status?: string;
+    availableBeds?: number;
   };
   details?: any;
 }
 
-export interface Filters {
-  status: string;
-  severity: string;
+// ==============================
+// HOSPITAL REPORT TYPES
+// ==============================
+export interface HospitalReport {
+  id: number;
+  title: string;
+  type: string;
   date: string;
+  stats: {
+    totalPatients?: number;
+    avgWaitTime?: number;
+    criticalCases?: number;
+    bedOccupancy?: number;
+    bedUtilization?: number;
+    availableBeds?: number; // <-- สำคัญ
+    staffUtilization?: number;
+    equipmentUsage?: number;
+    supplies?: number;
+    admissions?: number;
+    discharges?: number;
+    transfers?: number;
+    satisfaction?: number;
+    status?: string; // active / inactive
+  };
+  details?: any;
 }
 
 // ==============================
-// เพิ่ม Types ที่คุณร้องขอ
+// ADDITIONAL TYPES
 // ==============================
-
 export interface NotificationSettings {
   emergencyAlerts: boolean;
   statusUpdates: boolean;
@@ -212,48 +244,15 @@ export interface EmergencySettings {
   defaultRadius: number;
   minUrgencyLevel: "CRITICAL" | "URGENT" | "NON_URGENT";
 }
-// app/shared/types.ts
-// Existing EmergencyCase works for hospital (reuse)
-export interface HospitalCase extends EmergencyCase {
-  // Optional hospital-specific (e.g., transferTo: string)
-}
 
-// app/shared/types.ts
-// Add to existing
-export interface HospitalReport {
-  id: number;
-  title: string;
-  type: string;
-  date: string;
-  stats: {
-    totalPatients?: number;
-    avgWaitTime?: number;
-    criticalCases?: number;
-    bedOccupancy?: number;
-    bedUtilization?: number;
-    staffUtilization?: number;
-    equipmentUsage?: number;
-    supplies?: number;
-    admissions?: number;
-    discharges?: number;
-    transfers?: number;
-    satisfaction?: number;
-  };
-}
-
-// app/shared/types.ts
-// Add to existing
 export interface RescueTeam {
   id: string;
   name: string;
-  status: 'available' | 'on-mission' | 'standby' | 'offline';
+  status: "available" | "on-mission" | "standby" | "offline";
   members: number;
   location: {
     address: string;
-    coordinates: {
-      lat: number;
-      lng: number;
-    };
+    coordinates: { lat: number; lng: number };
   };
   contact: string;
   vehicle: string;

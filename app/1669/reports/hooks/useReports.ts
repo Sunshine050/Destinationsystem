@@ -6,7 +6,9 @@ import { fetchReports } from "@/shared/services/emergencyService";
 import { fetchDashboardStats } from "@/shared/services/dashboardService";
 import { fetchNotifications, markNotificationAsRead, markAllNotificationsAsRead } from "@/shared/services/notificationService";
 import { generatePDF, handleDownloadAll } from "@/shared/utils/pdfUtils";
-import { Report, DashboardStats, Notification, Filters } from "@/shared/types";
+import { Report, DashboardStats, Notification } from "@/shared/types";
+import { FilterState as Filters } from "@/shared/types";
+
 import { webSocketClient } from "@lib/websocket";
 
 export const useReports = () => {
