@@ -1,10 +1,11 @@
-// @components/dashboard/map-view.tsx
 "use client";
 
 import { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import { cn } from "@lib/utils";
+import { MapLocation } from '@/shared/types'; // ใช้จาก shared
 
 // Fix Leaflet default icon
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -14,35 +15,27 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-export interface MapLocation {
-  id: string;
-  title: string;
-  severity: number;
-  coordinates: { lat: number; lng: number };
-  address: string;
-  description: string;
-  patientName: string;
-  status: string;
-}
-
 interface MapProps {
   locations: MapLocation[];
   selectedLocation: MapLocation | null;
   setSelectedLocation: (loc: MapLocation | null) => void;
+  className?: string;
 }
 
-// ซูมไปที่ marker ที่เลือก
 function FlyToMarker({ location }: { location: MapLocation | null }) {
   const map = useMap();
   useEffect(() => {
     if (location) {
-      map.setView(location.coordinates, 15, { animate: true });
+      map.setView(
+        { lat: location.coordinates[0], lng: location.coordinates[1] },
+        15,
+        { animate: true }
+      );
     }
   }, [location, map]);
   return null;
 }
 
-// เก็บ map instance ด้วย useMap (ไม่ใช้ whenReady)
 function MapInstance({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null> }) {
   const map = useMap();
   useEffect(() => {
@@ -58,10 +51,10 @@ export default function MapView({
   locations,
   selectedLocation,
   setSelectedLocation,
+  className,
 }: MapProps) {
   const mapRef = useRef<L.Map | null>(null);
 
-  // ทำลาย map อย่างปลอดภัยเมื่อ unmount
   useEffect(() => {
     return () => {
       if (mapRef.current) {
@@ -73,7 +66,7 @@ export default function MapView({
 
   if (locations.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center bg-slate-50">
+      <div className={cn("h-full flex items-center justify-center bg-slate-50", className)}>
         <p className="text-slate-500">ไม่มีข้อมูลตำแหน่งให้แสดง</p>
       </div>
     );
@@ -81,10 +74,10 @@ export default function MapView({
 
   return (
     <MapContainer
-      key={locations.map(l => l.id).join("-")} // บังคับ re-create
+      key={locations.map(l => l.id).join("-")}
       center={{ lat: 13.7563, lng: 100.5018 }}
       zoom={10}
-      style={{ width: "100%", height: "100%" }}
+      className={cn("w-full h-full", className)}
     >
       <TileLayer
         attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>'
@@ -95,7 +88,7 @@ export default function MapView({
       {locations.map((loc) => (
         <Marker
           key={loc.id}
-          position={loc.coordinates}
+          position={{ lat: loc.coordinates[0], lng: loc.coordinates[1] }}
           icon={L.divIcon({
             html: `
               <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">

@@ -4,29 +4,34 @@
 import { getAuthHeaders } from "@lib/utils";
 
 // Define DTO types ที่ match กับ backend (infer จาก RescueController/dto)
-interface CreateRescueTeamDto {
+export interface CreateRescueTeamDto {
   name: string;
   location?: { latitude: number; longitude: number };
   members?: string[];  // หรือ fields อื่น ปรับตาม dto/rescue.dto
 }
 
-interface UpdateRescueTeamDto {
+export interface UpdateRescueTeamDto {
   name?: string;
   location?: { latitude: number; longitude: number };
   members?: string[];
 }
 
-interface UpdateRescueTeamStatusDto {
+export interface UpdateRescueTeamStatusDto {
   status: string;  // เช่น 'available', 'busy'
+  currentEmergencyId?: string;
+  notes?: string;
 }
 
 // Assume RescueTeam type ใน shared/types ถ้ามี หรือ define ที่นี่
-interface RescueTeam {
+export interface RescueTeam {
   id: string;
   name: string;
   status: string;
   location: { latitude: number; longitude: number };
-  // เพิ่ม fields อื่น
+  address?: string;
+  city?: string;
+  members?: string[];
+  [key: string]: any; // รองรับ field อื่น ๆ
 }
 
 export const createRescueTeam = async (data: CreateRescueTeamDto): Promise<RescueTeam> => {
@@ -82,7 +87,11 @@ export const updateRescueTeamStatus = async (id: string, data: UpdateRescueTeamS
   return response.json();
 };
 
-export const fetchAvailableTeams = async (latitude: number, longitude: number, radius: number = 10): Promise<RescueTeam[]> => {
+export const fetchAvailableTeams = async (
+  latitude: number,
+  longitude: number,
+  radius: number = 10
+): Promise<RescueTeam[]> => {
   const headers = getAuthHeaders();
   const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/rescue-teams/available`);
   url.searchParams.append('latitude', latitude.toString());

@@ -40,7 +40,7 @@ import {
 import { useToast } from "@/shared/hooks/use-toast";
 import { cn } from "@lib/utils";
 
-export interface CaseCardProps {
+interface CaseCardProps {
   id: string;
   description: string;
   descriptionFull?: string;
@@ -67,6 +67,8 @@ export interface CaseCardProps {
   setCases: React.Dispatch<React.SetStateAction<any[]>>;
   fetchHospitals: () => Promise<any[]>;
 }
+
+
 
 interface Hospital {
   id: string;
@@ -96,6 +98,7 @@ export default function CaseCard({
   const [selectedHospital, setSelectedHospital] = useState<string>("");
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
 
+  // Normalize status to lowercase string to keep consistent style
   const normalizedStatus = status.toLowerCase() as
     | "pending"
     | "assigned"
@@ -103,7 +106,7 @@ export default function CaseCard({
     | "completed"
     | "cancelled";
 
-  // ดึงข้อมูลโรงพยาบาล
+  // Load hospitals list on mount or when fetchHospitals changes
   useEffect(() => {
     const loadHospitals = async () => {
       try {
@@ -112,7 +115,7 @@ export default function CaseCard({
           data.map((h: any) => ({
             id: h.id,
             name: h.name || "โรงพยาบาลไม่มีชื่อ",
-            availableBeds: h.availableBeds || 0,
+            availableBeds: h.availableBeds ?? 0,
           }))
         );
       } catch (error) {
@@ -127,7 +130,7 @@ export default function CaseCard({
     loadHospitals();
   }, [fetchHospitals, toast]);
 
-  // ฟังก์ชันมอบหมายเคส
+  // Handler to assign case to selected hospital
   const handleAssign = async () => {
     if (!selectedHospital) {
       toast({
@@ -137,12 +140,14 @@ export default function CaseCard({
       });
       return;
     }
+
     try {
       const token = localStorage.getItem("access_token");
       if (!token) throw new Error("No access token");
 
       const hospital = hospitals.find((h) => h.id === selectedHospital);
       if (!hospital) throw new Error("Hospital not found");
+
       if (hospital.availableBeds === null || hospital.availableBeds <= 0) {
         throw new Error("ไม่มีเตียงว่างในโรงพยาบาลที่เลือก");
       }
@@ -166,7 +171,6 @@ export default function CaseCard({
         );
       }
 
-      const data = await response.json();
       toast({
         title: "มอบหมายเคสสำเร็จ",
         description: `เคส ${id.slice(-8)} ถูกมอบหมายให้ ${hospital.name}`,
@@ -188,18 +192,23 @@ export default function CaseCard({
             throw new Error(
               `ไม่สามารถดึงข้อมูลเคสได้: ${emergenciesRes.statusText}`
             );
+
           const emergenciesData = await emergenciesRes.json();
+
           const updatedCases = emergenciesData.map((item: any) => ({
             id: item.id || "unknown-id",
             description:
               (item.description || "ไม่มีรายละเอียด").slice(0, 50) + "...",
             descriptionFull: item.description || "ไม่มีรายละเอียด",
             status: item.status?.toLowerCase() || "pending",
-            grade: (
-              item.medicalInfo?.grade ||
-              item.grade ||
-              "NON_URGENT"
-            ).toUpperCase(),
+            grade:
+              (item.medicalInfo?.grade ||
+                item.grade ||
+                "NON_URGENT").toUpperCase() as
+                | "CRITICAL"
+                | "URGENT"
+                | "NON_URGENT"
+                | "UNKNOWN",
             reportedAt: item.createdAt || new Date().toISOString(),
             patientName:
               `${item.patient?.firstName || ""} ${
@@ -220,8 +229,11 @@ export default function CaseCard({
               : [],
             notes: item.notes || undefined,
           }));
+
           setCases(updatedCases);
-          await fetchHospitals(); // อัปเดตข้อมูลโรงพยาบาล
+
+          // รีเฟรชโรงพยาบาล
+          await fetchHospitals();
         } catch (error) {
           console.error("Error refreshing data:", error);
           toast({
@@ -231,6 +243,7 @@ export default function CaseCard({
           });
         }
       };
+
       await fetchData();
     } catch (error: any) {
       console.error("Error assigning case:", error);
@@ -242,6 +255,7 @@ export default function CaseCard({
     }
   };
 
+  // Helpers for UI colors based on status and grade
   const getStatusColor = (status: string) => {
     switch (status) {
       case "pending":
@@ -289,7 +303,10 @@ export default function CaseCard({
     }
   };
 
+  // Safe symptoms array
   const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
+
+  // Format reported date
   const reportedDate = new Date(reportedAt);
   const formattedDate = !isNaN(reportedDate.getTime())
     ? reportedDate.toLocaleString("th-TH")
@@ -338,11 +355,14 @@ export default function CaseCard({
             <span>{location.address}</span>
           </div>
         </div>
+
+        {/* เฉพาะ emergency-center และ status pending ถึงแสดง Select กับปุ่มมอบหมาย */}
         {role === "emergency-center" && normalizedStatus === "pending" && (
           <div className="flex gap-2 items-center mt-4">
             <Select
               value={selectedHospital}
               onValueChange={setSelectedHospital}
+              aria-label="Select hospital"
             >
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="เลือกโรงพยาบาล" />
@@ -366,6 +386,7 @@ export default function CaseCard({
               size="sm"
               onClick={handleAssign}
               disabled={!selectedHospital}
+              aria-disabled={!selectedHospital}
             >
               มอบหมาย
             </Button>
@@ -490,7 +511,7 @@ export default function CaseCard({
             </div>
 
             <DialogFooter className="flex justify-end sm:justify-end">
-              {/* เพิ่มปุ่มมอบหมายใน Dialog ถ้าต้องการ */}
+              {/* ถ้าต้องการใส่ปุ่มเพิ่มเติมใน Dialog Footer สามารถเพิ่มตรงนี้ */}
             </DialogFooter>
           </DialogContent>
         </Dialog>

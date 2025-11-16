@@ -1,9 +1,9 @@
-// app/hospital/cases/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { useHospitalCases, MapLocation } from "./hooks/useHospitalCases";
+import { useHospitalCases } from "./hooks/useHospitalCases";
+import { MapLocation as SharedMapLocation } from "@/shared/types"; // ใช้จาก shared
 import { useAuth } from "@/shared/hooks/useAuth";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import DashboardLayout from "@components/dashboard/dashboard-layout";
@@ -39,7 +39,14 @@ const MapView = dynamic(() => import("@components/dashboard/map-view"), {
 
 export default function HospitalCases() {
   useAuth();
-  const { notifications } = useNotifications();
+
+  // ใช้ notifications hook เต็ม
+  const {
+    notifications,
+    unreadCount,
+    onMarkAsRead,
+    onMarkAllAsRead,
+  } = useNotifications();
 
   const {
     cases: filteredCases,
@@ -54,11 +61,19 @@ export default function HospitalCases() {
     setFilters,
     handleTransferCase,
     handleCancelCase,
-    getMapLocations,
+    getMapLocations: getMapLocationsFromHook,
     refetch,
   } = useHospitalCases();
 
-  const [selectedLocation, setSelectedLocation] = useState<MapLocation | null>(null);
+  // แปลงจาก hook → shared type
+  const getMapLocations = (): SharedMapLocation[] => {
+    return getMapLocationsFromHook().map((loc) => ({
+      ...loc,
+      coordinates: [loc.coordinates.lat, loc.coordinates.lng] as [number, number],
+    }));
+  };
+
+  const [selectedLocation, setSelectedLocation] = useState<SharedMapLocation | null>(null);
 
   const stats = {
     total: allCases.length,
@@ -76,7 +91,13 @@ export default function HospitalCases() {
   // Loading State
   if (loading) {
     return (
-      <DashboardLayout role="hospital" notifications={notifications} unreadCount={0} onMarkAsRead={() => {}} onMarkAllAsRead={() => {}}>
+      <DashboardLayout
+        role="hospital"
+        notifications={notifications}
+        unreadCount={unreadCount}
+        onMarkAsRead={onMarkAsRead}
+        onMarkAllAsRead={onMarkAllAsRead}
+      >
         <div className="space-y-6 p-6">
           <div className="flex justify-between items-center">
             <Skeleton className="h-8 w-48" />
@@ -88,8 +109,8 @@ export default function HospitalCases() {
             <Skeleton className="h-10 w-32" />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-48 rounded-lg" />
+            {[...Array(4)].map((_i) => (
+              <Skeleton key={_i} className="h-48 rounded-lg" />
             ))}
           </div>
         </div>
@@ -100,7 +121,13 @@ export default function HospitalCases() {
   // Error State
   if (error) {
     return (
-      <DashboardLayout role="hospital" notifications={notifications} unreadCount={0} onMarkAsRead={() => {}} onMarkAllAsRead={() => {}}>
+      <DashboardLayout
+        role="hospital"
+        notifications={notifications}
+        unreadCount={unreadCount}
+        onMarkAsRead={onMarkAsRead}
+        onMarkAllAsRead={onMarkAllAsRead}
+      >
         <div className="flex flex-col items-center justify-center py-12 px-6">
           <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
           <h3 className="text-lg font-semibold mb-2">ไม่สามารถโหลดข้อมูลได้</h3>
@@ -115,7 +142,13 @@ export default function HospitalCases() {
   }
 
   return (
-    <DashboardLayout role="hospital" notifications={notifications} unreadCount={0} onMarkAsRead={() => {}} onMarkAllAsRead={() => {}}>
+    <DashboardLayout
+      role="hospital"
+      notifications={notifications}
+      unreadCount={unreadCount}
+      onMarkAsRead={onMarkAsRead}
+      onMarkAllAsRead={onMarkAllAsRead}
+    >
       <div className="space-y-6 p-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -241,13 +274,12 @@ export default function HospitalCases() {
             )}
           </div>
         ) : (
-          // ใช้ key เพื่อบังคับ re-create DOM ใหม่ทุกครั้ง
           <div
-            key={getMapLocations.map(l => l.id).join("-")}
+            key={getMapLocations().map((l) => l.id).join("-")}
             className="relative h-96 lg:h-[600px] rounded-lg overflow-hidden border"
           >
             <MapView
-              locations={getMapLocations}
+              locations={getMapLocations()}
               selectedLocation={selectedLocation}
               setSelectedLocation={setSelectedLocation}
             />
