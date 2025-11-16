@@ -49,7 +49,7 @@ export const RescueTeamCard: React.FC<RescueTeamCardProps> = ({ team }) => (
           <MapPin className="h-4 w-4" />
           Location
         </p>
-        <p className="font-medium">{team.location.address}</p>
+        <p className="font-medium">{team.location?.address ?? "ไม่พบที่อยู่"}</p>
       </div>
 
       <div className="space-y-1">

@@ -45,34 +45,69 @@ interface AcceptEmergencyDto {
   notes?: string;  // optional
 }
 
-// Function เดิม (เพิ่ม optional search)
+// Function เดิม (เพิ่ม optional search) - แก้ไขให้มี logging และ better error handling
 export const fetchHospitals = async (search?: string): Promise<Hospital[]> => {
-  const headers = getAuthHeaders();
-  const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/hospitals`);
-  if (search) url.searchParams.append('search', search);
-  const response = await fetch(url.toString(), {
-    headers,
-  });
-  if (!response.ok) throw new Error(`Failed to fetch hospitals: ${response.statusText}`);
-  const data = await response.json();
-  return data.map((hospital: any) => ({
-    ...hospital,
-    availableBeds: hospital.availableBeds || 0,
-  }));
+  try {
+    const headers = getAuthHeaders();
+    console.log('Fetching hospitals with headers:', headers);  // Debug: ดู token ที่ส่ง (อย่าลืม remove ก่อน production ถ้า sensitive)
+
+    const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/hospitals`);
+    if (search) url.searchParams.append('search', search);
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',  // Explicit method
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',  // เพิ่มเผื่อ server require
+      },
+    });
+
+    if (!response.ok) {
+      let errorDetails = '';
+      try {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorJson = await response.json();
+          errorDetails = JSON.stringify(errorJson);
+        } else {
+          errorDetails = await response.text();
+        }
+      } catch (parseError) {
+        console.error('Error parsing response:', parseError);
+        errorDetails = 'Unable to parse error details';
+      }
+      console.error(`Server error: ${response.status} - ${response.statusText}. Details: ${errorDetails}`);
+      throw new Error(`Failed to fetch hospitals: ${response.status} ${response.statusText}. Details: ${errorDetails}`);
+    }
+
+    const data = await response.json();
+    console.log('Fetched hospitals data:', data);  // Debug: ดู data ที่ได้
+    return data.map((hospital: any) => ({
+      ...hospital,
+      availableBeds: hospital.availableBeds || 0,
+    }));
+  } catch (error) {
+    console.error('Unexpected error in fetchHospitals:', error);
+    throw error;  // Re-throw เพื่อให้ component จับได้
+  }
 };
 
-// Function เดิม (ปรับ path ให้ match PUT /hospitals/:id สมมติ status เป็นส่วนหนึ่ง)
+// Function เดิม (ปรับ path ให้ match PUT /hospitals/:id สมมติ status เป็นส่วนหนึ่ง) - เพิ่ม logging เผื่อ
 export const updateHospitalStatus = async (hospitalId: string, newStatus: HospitalStatus): Promise<void> => {
   const headers = getAuthHeaders();
+  console.log('Updating status with headers:', headers);  // Debug
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/hospitals/${hospitalId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify({ status: newStatus }),  // สมมติ backend accept { status }
   });
-  if (!response.ok) throw new Error(`Failed to update status: ${response.statusText}`);
+  if (!response.ok) {
+    const errorDetails = await response.text();
+    throw new Error(`Failed to update status: ${response.statusText}. Details: ${errorDetails}`);
+  }
 };
 
-// Functions ใหม่สำหรับ endpoints อื่น ๆ
+// Functions ใหม่สำหรับ endpoints อื่น ๆ (เพิ่ม error handling พื้นฐานเหมือนกัน ถ้าต้องการ logging เพิ่มได้)
 export const createHospital = async (data: CreateHospitalDto): Promise<Hospital> => {
   const headers = getAuthHeaders();
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/hospitals`, {
@@ -80,7 +115,10 @@ export const createHospital = async (data: CreateHospitalDto): Promise<Hospital>
     headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error(`Failed to create hospital: ${response.statusText}`);
+  if (!response.ok) {
+    const errorDetails = await response.text();
+    throw new Error(`Failed to create hospital: ${response.statusText}. Details: ${errorDetails}`);
+  }
   return response.json();
 };
 
@@ -89,7 +127,10 @@ export const fetchHospitalById = async (id: string): Promise<Hospital> => {
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/hospitals/${id}`, {
     headers,
   });
-  if (!response.ok) throw new Error(`Failed to fetch hospital: ${response.statusText}`);
+  if (!response.ok) {
+    const errorDetails = await response.text();
+    throw new Error(`Failed to fetch hospital: ${response.statusText}. Details: ${errorDetails}`);
+  }
   return response.json();
 };
 
@@ -100,7 +141,10 @@ export const updateHospital = async (id: string, data: UpdateHospitalDto): Promi
     headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error(`Failed to update hospital: ${response.statusText}`);
+  if (!response.ok) {
+    const errorDetails = await response.text();
+    throw new Error(`Failed to update hospital: ${response.statusText}. Details: ${errorDetails}`);
+  }
   return response.json();
 };
 
@@ -110,7 +154,10 @@ export const deleteHospital = async (id: string): Promise<void> => {
     method: "DELETE",
     headers,
   });
-  if (!response.ok) throw new Error(`Failed to delete hospital: ${response.statusText}`);
+  if (!response.ok) {
+    const errorDetails = await response.text();
+    throw new Error(`Failed to delete hospital: ${response.statusText}. Details: ${errorDetails}`);
+  }
 };
 
 export const updateHospitalCapacity = async (id: string, data: UpdateHospitalCapacityDto): Promise<any> => {
@@ -120,7 +167,10 @@ export const updateHospitalCapacity = async (id: string, data: UpdateHospitalCap
     headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error(`Failed to update capacity: ${response.statusText}`);
+  if (!response.ok) {
+    const errorDetails = await response.text();
+    throw new Error(`Failed to update capacity: ${response.statusText}. Details: ${errorDetails}`);
+  }
   return response.json();
 };
 
@@ -131,7 +181,10 @@ export const acceptEmergency = async (hospitalId: string, data: AcceptEmergencyD
     headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error(`Failed to accept emergency: ${response.statusText}`);
+  if (!response.ok) {
+    const errorDetails = await response.text();
+    throw new Error(`Failed to accept emergency: ${response.statusText}. Details: ${errorDetails}`);
+  }
   return response.json();
 };
 
@@ -142,7 +195,10 @@ export const fetchNearbyHospitals = async (latitude: number, longitude: number, 
   const response = await fetch(url.toString(), {
     headers,
   });
-  if (!response.ok) throw new Error(`Failed to fetch nearby hospitals: ${response.statusText}`);
+  if (!response.ok) {
+    const errorDetails = await response.text();
+    throw new Error(`Failed to fetch nearby hospitals: ${response.statusText}. Details: ${errorDetails}`);
+  }
   return response.json();
 };
 
@@ -152,7 +208,10 @@ export const updateEmergencyResponseStatus = async (responseId: string): Promise
     method: "PUT",
     headers: { "Content-Type": "application/json", ...headers },
   });
-  if (!response.ok) throw new Error(`Failed to update response status: ${response.statusText}`);
+  if (!response.ok) {
+    const errorDetails = await response.text();
+    throw new Error(`Failed to update response status: ${response.statusText}. Details: ${errorDetails}`);
+  }
   return response.json();
 };
 
@@ -162,7 +221,10 @@ export const notifyRescueTeam = async (responseId: string): Promise<any> => {
     method: "POST",
     headers: { "Content-Type": "application/json", ...headers },
   });
-  if (!response.ok) throw new Error(`Failed to notify rescue team: ${response.statusText}`);
+  if (!response.ok) {
+    const errorDetails = await response.text();
+    throw new Error(`Failed to notify rescue team: ${response.statusText}. Details: ${errorDetails}`);
+  }
   return response.json();
 };
 
@@ -171,7 +233,10 @@ export const fetchEmergencyResponse = async (responseId: string): Promise<any> =
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/hospitals/emergency-responses/${responseId}`, {
     headers,
   });
-  if (!response.ok) throw new Error(`Failed to fetch emergency response: ${response.statusText}`);
+  if (!response.ok) {
+    const errorDetails = await response.text();
+    throw new Error(`Failed to fetch emergency response: ${response.statusText}. Details: ${errorDetails}`);
+  }
   return response.json();
 };
 
@@ -182,6 +247,9 @@ export const updateEmergencyResponseStatusManual = async (responseId: string, st
     headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify({ status }),
   });
-  if (!response.ok) throw new Error(`Failed to update response status manual: ${response.statusText}`);
+  if (!response.ok) {
+    const errorDetails = await response.text();
+    throw new Error(`Failed to update response status manual: ${response.statusText}. Details: ${errorDetails}`);
+  }
   return response.json();
 };

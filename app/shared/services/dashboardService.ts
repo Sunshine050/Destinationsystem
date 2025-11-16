@@ -52,7 +52,7 @@ type DashboardStats = DashboardStatsResponseDto;
 // Function เดิม (match ตรง ไม่ต้องปรับ)
 export const fetchDashboardStats = async (): Promise<DashboardStats> => {
   const headers = getAuthHeaders();
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dashboard/stats`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/rescue/dashboard/stats`, {
     headers,
   });
   if (!response.ok) throw new Error(`Failed to fetch stats: ${response.statusText}`);

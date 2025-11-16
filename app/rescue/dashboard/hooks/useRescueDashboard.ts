@@ -1,12 +1,81 @@
+// hooks/useRescueDashboard.ts
 import { useState, useEffect } from "react";
 import { useToast } from "@/shared/hooks/use-toast";
+
+// === Emergency APIs ===
 import {
   fetchActiveEmergencies,
   updateEmergencyStatus,
   cancelCase,
 } from "@/shared/services/emergencyService";
 
+// === Auth Services ===
+import {
+  fetchUserProfile,
+  saveUserSettings,
+  saveHospitalSettings,
+  registerUser,
+  loginUser,
+  refreshToken,
+  initiateOAuth,
+  verifyToken,
+  supabaseLogin,
+} from "@/shared/services/authService";
+
+// === Rescue Team Services ===
+import {
+  createRescueTeam,
+  fetchRescueTeams,
+  fetchRescueTeamById,
+  updateRescueTeam,
+  updateRescueTeamStatus,
+  fetchAvailableTeams,
+} from "@/shared/services/rescueService";
+
+// === Notification Services (เพิ่มใหม่ทั้งหมด) ===
+import {
+  fetchNotifications,
+  createNotification,
+  markAsRead,
+  markAllAsRead,
+  deleteNotification,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+} from "@/shared/services/notificationService";
+
 import { EmergencyCase } from "@/shared/types";
+
+// === Enum และ DTO ===
+enum UserRole {
+  PATIENT = "PATIENT",
+  EMERGENCY_CENTER = "EMERGENCY_CENTER",
+  HOSPITAL = "HOSPITAL",
+  RESCUE_TEAM = "RESCUE_TEAM",
+  ADMIN = "ADMIN",
+}
+
+interface RegisterDto {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  role?: UserRole;
+}
+
+interface LoginDto {
+  email: string;
+  password: string;
+}
+
+interface OAuthLoginDto {
+  provider: string;
+  redirectUrl?: string;
+}
+
+interface RefreshTokenDto {
+  refreshToken: string;
+}
 
 export const useRescueDashboard = () => {
   const [cases, setCases] = useState<EmergencyCase[]>([]);
@@ -15,7 +84,7 @@ export const useRescueDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ดึงเคสจาก API ตอน mount
+  // --- Load Emergency Cases ---
   useEffect(() => {
     setLoading(true);
     fetchActiveEmergencies()
@@ -29,6 +98,7 @@ export const useRescueDashboard = () => {
       });
   }, []);
 
+  // --- Complete Case ---
   const handleCompleteCase = async (caseId: string) => {
     try {
       await updateEmergencyStatus(caseId, { status: "completed" });
@@ -48,6 +118,7 @@ export const useRescueDashboard = () => {
     }
   };
 
+  // --- Cancel Case ---
   const handleCancelCase = async (caseId: string) => {
     try {
       await cancelCase(caseId);
@@ -67,6 +138,7 @@ export const useRescueDashboard = () => {
     }
   };
 
+  // --- Filters ---
   const filteredCases = cases.filter(
     (c) =>
       c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -74,6 +146,7 @@ export const useRescueDashboard = () => {
       c.emergencyType.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // --- Stats ---
   const stats = {
     inProgress: cases.filter((c) => c.status === "in-progress").length,
     completed: cases.filter((c) => c.status === "completed").length,
@@ -82,6 +155,7 @@ export const useRescueDashboard = () => {
   };
 
   return {
+    // --- Dashboard state ---
     cases,
     filteredCases,
     searchQuery,
@@ -92,6 +166,39 @@ export const useRescueDashboard = () => {
     loading,
     error,
     setCases,
-    
+
+    // ============================
+    // ⚡ AUTH API EXPORT
+    // ============================
+    fetchUserProfile,
+    saveUserSettings,
+    saveHospitalSettings,
+    registerUser,
+    loginUser,
+    refreshToken,
+    initiateOAuth,
+    verifyToken,
+    supabaseLogin,
+
+    // ============================
+    // 🚑 RESCUE TEAM API EXPORT
+    // ============================
+    createRescueTeam,
+    fetchRescueTeams,
+    fetchRescueTeamById,
+    updateRescueTeam,
+    updateRescueTeamStatus,
+    fetchAvailableTeams,
+
+    // ============================
+    // 🔔 NOTIFICATION API EXPORT (ใหม่)
+    // ============================
+    fetchNotifications,
+    createNotification,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
   };
 };

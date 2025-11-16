@@ -260,6 +260,7 @@ export interface RescueTeam {
   lastActive: string;
 }
 
+
 export interface HospitalSettings {
   hospitalName: string;
   address: string;
