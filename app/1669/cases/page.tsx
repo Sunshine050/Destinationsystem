@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react";
 import { useEmergencyCases } from "./hooks/useEmergencyCases";
 import DashboardLayout from "@components/dashboard/dashboard-layout";
-import { Button } from '@components/ui/button';
+import { Button } from "@components/ui/button";
+import { CaseCard } from "./components/CaseCard";
+
 import {
   Search,
   Filter,
@@ -12,8 +14,14 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { Input } from "@components/ui/input";
-import { Badge } from '@components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@components/ui/select";
+import { Badge } from "@components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,10 +32,7 @@ import {
 } from "@components/ui/dropdown-menu";
 import { Card, CardContent } from "@components/ui/card";
 import dynamic from "next/dynamic";
-import { MapView } from "./components/MapView";
-import { CaseCard } from "./components/CaseCard";
 import { useToast } from "@/shared/hooks/use-toast";
-import L from "leaflet";
 
 // โหลด React-leaflet components แบบ dynamic และปิด SSR
 const MapContainerDynamic = dynamic(
@@ -39,17 +44,37 @@ const TileLayerDynamic = dynamic(
   { ssr: false }
 );
 
-// import useMap hook ปกติได้เลย
+// import useMap hook ปกติได้เลย (เพราะใช้ใน client-only component)
 import { useMap } from "react-leaflet";
 
-function MapController({ mapLocations }: { mapLocations: { id: string; coordinates: [number, number]; severity?: number; }[] }) {
+// โหลด MapView แบบ client-only
+const MapView = dynamic(
+  () => import("./components/MapView").then((mod) => mod.MapView),
+  {
+    ssr: false,
+    loading: () => <p className="p-4 text-center">กำลังโหลดแผนที่...</p>,
+  }
+);
+
+function MapController({
+  mapLocations,
+}: {
+  mapLocations: {
+    id: string;
+    coordinates: [number, number];
+    severity?: number;
+  }[];
+}) {
   const { toast } = useToast();
   const map = useMap();
 
   useEffect(() => {
     try {
       if (mapLocations.length === 0) {
-        toast({ title: "ไม่มีข้อมูล", description: "ไม่มีเคสฉุกเฉินที่มีพิกัดถูกต้อง" });
+        toast({
+          title: "ไม่มีข้อมูล",
+          description: "ไม่มีเคสฉุกเฉินที่มีพิกัดถูกต้อง",
+        });
         return;
       }
 
@@ -62,7 +87,10 @@ function MapController({ mapLocations }: { mapLocations: { id: string; coordinat
       );
 
       if (validLocations.length === 0) {
-        toast({ title: "ข้อผิดพลาด", description: "ไม่มีพิกัดที่ถูกต้องสำหรับแสดงบนแผนที่" });
+        toast({
+          title: "ข้อผิดพลาด",
+          description: "ไม่มีพิกัดที่ถูกต้องสำหรับแสดงบนแผนที่",
+        });
         return;
       }
 
@@ -70,14 +98,18 @@ function MapController({ mapLocations }: { mapLocations: { id: string; coordinat
         map.setView(validLocations[0].coordinates, 13);
       } else {
         const bounds = validLocations.reduce(
-          (bounds: L.LatLngBounds, loc) => bounds.extend(L.latLng(loc.coordinates)),
-          L.latLngBounds([])
+          (bounds: any, loc) => bounds.extend(loc.coordinates),
+          (window as any).L.latLngBounds([])
         );
         if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50] });
       }
     } catch (error) {
       console.error("เกิดข้อผิดพลาดใน MapController:", error);
-      toast({ title: "ข้อผิดพลาด", description: "ไม่สามารถโหลดแผนที่ได้ กรุณาลองใหม่", variant: "destructive" });
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "ไม่สามารถโหลดแผนที่ได้ กรุณาลองใหม่",
+        variant: "destructive",
+      });
     }
   }, [map, mapLocations, toast]);
 
@@ -343,13 +375,14 @@ export default function EmergencyCenterCases() {
                 center={[13.7563, 100.5018]}
                 zoom={10}
                 style={{ height: "500px", width: "100%" }}
-                key="emergency-map"
+                key={mapLocations.length} // key ขึ้นกับจำนวนข้อมูล
               >
                 <TileLayerDynamic
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 />
                 <MapController mapLocations={mapLocations} />
+                {/* ลบ MapContainer ออกจาก MapView แล้วให้ MapView รับ mapLocations มาแสดง Marker */}
                 <MapView
                   mapLocations={mapLocations}
                   onLocationSelect={() => {}}

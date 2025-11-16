@@ -1,94 +1,158 @@
 // app/hospital/cases/hooks/useHospitalCases.ts
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useToast } from "@/shared/hooks/use-toast";
 import { EmergencyCase } from "@/shared/types";
+import {
+  fetchActiveEmergencies,
+  transferCase,
+  cancelCase,
+} from "@/shared/services/emergencyService";
 
-const hospitalCases: EmergencyCase[] = [
-  {
-    id: "ER-2305-002",
-    description: "Unconscious Person at Central Plaza",
-    descriptionFull: "Patient suddenly collapsed while eating. No visible injuries.",
-    status: "assigned",
-    severity: 2,
-    grade: "URGENT",
-    reportedAt: "2025-03-15T10:05:43",
-    patientName: "Wanida Rakdee",
-    contactNumber: "089-876-5432",
-    emergencyType: "Unconsciousness",
-    location: { address: "Central Plaza, 5th Floor, Food Court", coordinates: { lat: 13.8765, lng: 100.4321 } },
-    assignedTo: "Thonburi Hospital",
-    symptoms: ["Unconsciousness", "Pallor"],
-  },
-  {
-    id: "ER-2305-003",
-    description: "Drowning at Blue Beach Resort",
-    descriptionFull: "Tourist found unconscious in hotel swimming pool. CPR in progress by hotel staff.",
-    status: "in-progress",
-    severity: 4,
-    grade: "CRITICAL",
-    reportedAt: "2025-03-15T11:17:22",
-    patientName: "Michael Johnson",
-    contactNumber: "062-345-6789",
-    emergencyType: "Drowning",
-    location: { address: "Blue Beach Resort, Koh Samui", coordinates: { lat: 9.5678, lng: 100.0123 } },
-    assignedTo: "Samui International Hospital",
-    symptoms: ["Unconsciousness", "Not Breathing", "Cyanosis"],
-  },
-  {
-    id: "ER-2305-005",
-    description: "Stroke Symptoms at Office Building",
-    descriptionFull: "Female patient with sudden facial drooping slurred speech during meeting.",
-    status: "assigned",
-    severity: 3,
-    grade: "URGENT",
-    reportedAt: "2025-03-15T12:30:15",
-    patientName: "Somying Jaidee",
-    contactNumber: "085-123-4567",
-    emergencyType: "Stroke",
-    location: { address: "SCB Park Plaza, 12th Floor, Ratchadapisek Rd.", coordinates: { lat: 13.8123, lng: 100.5678 } },
-    assignedTo: "Thonburi Hospital",
-    symptoms: ["Facial Drooping", "Slurred Speech", "Arm Weakness"],
-  },
-];
+export interface MapLocation {
+  id: string;
+  title: string;
+  severity: number;
+  coordinates: { lat: number; lng: number };
+  address: string;
+  description: string;
+  patientName: string;
+  status: string;
+}
 
 export const useHospitalCases = () => {
-  const [cases, setCases] = useState<EmergencyCase[]>(hospitalCases);
+  const [cases, setCases] = useState<EmergencyCase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
-  const [filters, setFilters] = useState({ status: "all", severity: "all", date: "all" });
+  const [filters, setFilters] = useState({
+    status: "all",
+    severity: "all",
+    date: "all",
+  });
   const { toast } = useToast();
 
-  const filteredCases = useMemo(() => cases.filter((c) => {
-    const matchesSearch =
-      c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.emergencyType.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = filters.status === "all" || c.status === filters.status;
-    const matchesSeverity = filters.severity === "all" || c.severity.toString() === filters.severity;
-    const matchesDate = filters.date === "all"; // Simplified for sample
-    return matchesSearch && matchesStatus && matchesSeverity && matchesDate;
-  }), [cases, searchQuery, filters]);
+  useEffect(() => {
+    const loadCases = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await fetchActiveEmergencies();
+        setCases(data);
+      } catch (err: any) {
+        setError(err.message || "ไม่สามารถโหลดข้อมูลเคสได้");
+        toast({
+          title: "โหลดข้อมูลล้มเหลว",
+          description: err.message,
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleTransferCase = (caseId: string) => {
-    setCases((prev) => prev.map((c) => c.id === caseId ? { ...c, status: "in-progress", assignedTo: "Rescue Team Alpha" } : c));
-    toast({ title: "Case transferred", description: `Case ${caseId} has been assigned to Rescue Team Alpha.` });
+    loadCases();
+  }, [toast]);
+
+  const filteredCases = useMemo(() => {
+    return cases.filter((c) => {
+      const matchesSearch =
+        c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (c.patientName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (c.emergencyType || "").toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesStatus = filters.status === "all" || c.status === filters.status;
+      const matchesSeverity =
+        filters.severity === "all" || c.severity.toString() === filters.severity;
+      const matchesDate = filters.date === "all";
+
+      return matchesSearch && matchesStatus && matchesSeverity && matchesDate;
+    });
+  }, [cases, searchQuery, filters]);
+
+  const handleTransferCase = async (caseId: string) => {
+    try {
+      await transferCase(caseId, "Rescue Team Alpha");
+      setCases((prev) =>
+        prev.map((c) =>
+          c.id === caseId
+            ? { ...c, status: "in-progress", assignedTo: "Rescue Team Alpha" }
+            : c
+        )
+      );
+      toast({
+        title: "โอนเคสสำเร็จ",
+        description: `เคส ${caseId} ถูกส่งไปยัง Rescue Team Alpha`,
+      });
+    } catch (err: any) {
+      toast({
+        title: "โอนเคสล้มเหลว",
+        description: err.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleCancelCase = (caseId: string) => {
-    setCases((prev) => prev.map((c) => c.id === caseId ? { ...c, status: "cancelled" } : c));
-    toast({ title: "Case cancelled", description: `Case ${caseId} has been cancelled.` });
+  const handleCancelCase = async (caseId: string) => {
+    try {
+      await cancelCase(caseId);
+      setCases((prev) =>
+        prev.map((c) => (c.id === caseId ? { ...c, status: "cancelled" } : c))
+      );
+      toast({
+        title: "ยกเลิกเคสสำเร็จ",
+        description: `เคส ${caseId} ถูกยกเลิกแล้ว`,
+      });
+    } catch (err: any) {
+      toast({
+        title: "ยกเลิกเคสล้มเหลว",
+        description: err.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const getMapLocations = useMemo(() => filteredCases.map((c) => ({
-    id: c.id,
-    title: c.description,
-    severity: c.severity,
-    coordinates: [c.location.coordinates.lat, c.location.coordinates.lng] as [number, number],
-  })), [filteredCases]);
+  // แก้ตรงนี้: ส่ง coordinates เป็น { lat, lng } + ครบทุก field
+  const getMapLocations = useMemo((): MapLocation[] => {
+    return filteredCases
+      .filter((c) => c.location?.coordinates)
+      .map((c) => ({
+        id: c.id,
+        title: c.description,
+        severity: c.severity,
+        coordinates: {
+          lat: c.location.coordinates.lat,
+          lng: c.location.coordinates.lng,
+        },
+        address: c.location.address,
+        description: c.descriptionFull || c.description,
+        patientName: c.patientName || "ไม่ระบุชื่อ",
+        status: c.status,
+      }));
+  }, [filteredCases]);
+
+  const refetch = async () => {
+    try {
+      setLoading(true);
+      const data = await fetchActiveEmergencies();
+      setCases(data);
+    } catch (err: any) {
+      toast({
+        title: "รีเฟรชล้มเหลว",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return {
     cases: filteredCases,
+    allCases: cases,
+    loading,
+    error,
     searchQuery,
     setSearchQuery,
     viewMode,
@@ -98,5 +162,6 @@ export const useHospitalCases = () => {
     handleTransferCase,
     handleCancelCase,
     getMapLocations,
+    refetch,
   };
 };

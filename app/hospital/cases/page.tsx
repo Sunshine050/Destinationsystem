@@ -1,14 +1,15 @@
+// app/hospital/cases/page.tsx
 "use client";
 
-import { useState } from "react";
-import { useHospitalCases } from "./hooks/useHospitalCases";
+import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
+import { useHospitalCases, MapLocation } from "./hooks/useHospitalCases";
 import { useAuth } from "@/shared/hooks/useAuth";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import DashboardLayout from "@components/dashboard/dashboard-layout";
 import { Button } from "@components/ui/button";
-import { Search, Filter, MapPin, ChevronDown, AlertTriangle } from "lucide-react";
+import { Search, Filter, MapPin, ChevronDown, AlertTriangle, RefreshCw } from "lucide-react";
 import { Input } from "@components/ui/input";
-import { Badge } from "@components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@components/ui/select";
 import {
   DropdownMenu,
@@ -19,8 +20,22 @@ import {
   DropdownMenuTrigger,
 } from "@components/ui/dropdown-menu";
 import { HospitalCaseCard } from "./components/HospitalCaseCard";
-import { HospitalStatusCards } from "@/shared/components/StatsCards"; // import ให้ตรงกับ export
-import MapView from "@components/dashboard/map-view"; // Shared
+import { HospitalStatusCards } from "@/shared/components/StatsCards";
+import { Skeleton } from "@components/ui/skeleton";
+import { Badge } from "@components/ui/badge";
+
+// โหลด MapView แบบ dynamic + ปิด SSR
+const MapView = dynamic(() => import("@components/dashboard/map-view"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-96 lg:h-[600px] flex items-center justify-center bg-slate-50 rounded-lg border">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+        <p className="text-sm text-slate-500">กำลังโหลดแผนที่...</p>
+      </div>
+    </div>
+  ),
+});
 
 export default function HospitalCases() {
   useAuth();
@@ -28,6 +43,9 @@ export default function HospitalCases() {
 
   const {
     cases: filteredCases,
+    allCases,
+    loading,
+    error,
     searchQuery,
     setSearchQuery,
     viewMode,
@@ -36,57 +54,91 @@ export default function HospitalCases() {
     setFilters,
     handleTransferCase,
     handleCancelCase,
-    getMapLocations, // สมมติว่าเป็น array จริงๆ
+    getMapLocations,
+    refetch,
   } = useHospitalCases();
 
+  const [selectedLocation, setSelectedLocation] = useState<MapLocation | null>(null);
+
   const stats = {
-    total: filteredCases.length,
-    assigned: filteredCases.filter((c) => c.status === "assigned").length,
-    critical: filteredCases.filter((c) => c.severity === 4).length,
-    inProgress: filteredCases.filter((c) => c.status === "in-progress").length,
+    total: allCases.length,
+    assigned: allCases.filter((c) => c.status === "assigned").length,
+    critical: allCases.filter((c) => c.severity === 4).length,
+    inProgress: allCases.filter((c) => c.status === "in-progress").length,
   };
 
-  if (filteredCases.length === 0) {
+  // Auto refresh ทุก 15 วินาที
+  useEffect(() => {
+    const interval = setInterval(refetch, 15000);
+    return () => clearInterval(interval);
+  }, [refetch]);
+
+  // Loading State
+  if (loading) {
     return (
-      <DashboardLayout
-        role="hospital"
-        notifications={notifications}
-        unreadCount={0}
-        onMarkAsRead={() => {}}
-        onMarkAllAsRead={() => {}}
-      >
-        <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
-          <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-slate-400" />
-          <p className="text-slate-500 dark:text-slate-400">No cases found matching your criteria</p>
+      <DashboardLayout role="hospital" notifications={notifications} unreadCount={0} onMarkAsRead={() => {}} onMarkAllAsRead={() => {}}>
+        <div className="space-y-6 p-6">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-10 w-10 rounded-full" />
+          </div>
+          <div className="flex gap-4">
+            <Skeleton className="h-10 flex-grow" />
+            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-48 rounded-lg" />
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Error State
+  if (error) {
+    return (
+      <DashboardLayout role="hospital" notifications={notifications} unreadCount={0} onMarkAsRead={() => {}} onMarkAllAsRead={() => {}}>
+        <div className="flex flex-col items-center justify-center py-12 px-6">
+          <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-lg font-semibold mb-2">ไม่สามารถโหลดข้อมูลได้</h3>
+          <p className="text-slate-500 mb-4 text-center max-w-md">{error}</p>
+          <Button onClick={refetch} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            ลองใหม่
+          </Button>
         </div>
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout
-      role="hospital"
-      notifications={notifications}
-      unreadCount={0}
-      onMarkAsRead={() => {}}
-      onMarkAllAsRead={() => {}}
-    >
-      <div className="space-y-6">
+    <DashboardLayout role="hospital" notifications={notifications} unreadCount={0} onMarkAsRead={() => {}} onMarkAllAsRead={() => {}}>
+      <div className="space-y-6 p-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Emergency Cases</h1>
-            <p className="text-slate-500 dark:text-slate-400">Manage and monitor assigned emergency cases</p>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              Emergency Cases
+              <Button size="sm" variant="ghost" onClick={refetch}>
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400">
+              จัดการและติดตามเคสฉุกเฉินที่มอบหมายให้โรงพยาบาล
+            </p>
           </div>
         </div>
 
-        {/* Search and filters */}
+        {/* Search & Filters */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-grow">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
             <Input
               type="search"
-              placeholder="Search by ID, name, or type..."
+              placeholder="ค้นหาด้วย ID, ชื่อผู้ป่วย, หรือประเภท..."
               className="pl-8"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -94,29 +146,29 @@ export default function HospitalCases() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Select value={filters.status} onValueChange={(value) => setFilters({ ...filters, status: value })}>
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="Status" />
+            <Select value={filters.status} onValueChange={(v) => setFilters({ ...filters, status: v })}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="สถานะ" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="assigned">Assigned</SelectItem>
-                <SelectItem value="in-progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="all">ทุกสถานะ</SelectItem>
+                <SelectItem value="assigned">รอมอบหมาย</SelectItem>
+                <SelectItem value="in-progress">กำลังดำเนินการ</SelectItem>
+                <SelectItem value="completed">เสร็จสิ้น</SelectItem>
+                <SelectItem value="cancelled">ยกเลิก</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select value={filters.severity} onValueChange={(value) => setFilters({ ...filters, severity: value })}>
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="Severity" />
+            <Select value={filters.severity} onValueChange={(v) => setFilters({ ...filters, severity: v })}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="ความรุนแรง" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Severities</SelectItem>
-                <SelectItem value="1">Grade 1 (Mild)</SelectItem>
-                <SelectItem value="2">Grade 2 (Moderate)</SelectItem>
-                <SelectItem value="3">Grade 3 (Severe)</SelectItem>
-                <SelectItem value="4">Grade 4 (Critical)</SelectItem>
+                <SelectItem value="all">ทุกระดับ</SelectItem>
+                <SelectItem value="1">Grade 1</SelectItem>
+                <SelectItem value="2">Grade 2</SelectItem>
+                <SelectItem value="3">Grade 3</SelectItem>
+                <SelectItem value="4">Grade 4</SelectItem>
               </SelectContent>
             </Select>
 
@@ -124,37 +176,22 @@ export default function HospitalCases() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2">
                   <Filter className="h-4 w-4" />
-                  More Filters
+                  เพิ่มเติม
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56">
-                <DropdownMenuLabel>Date Range</DropdownMenuLabel>
+              <DropdownMenuContent>
+                <DropdownMenuLabel>ช่วงเวลา</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem
-                  checked={filters.date === "all"}
-                  onCheckedChange={() => setFilters({ ...filters, date: "all" })}
-                >
-                  All Dates
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={filters.date === "today"}
-                  onCheckedChange={() => setFilters({ ...filters, date: "today" })}
-                >
-                  Today
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={filters.date === "yesterday"}
-                  onCheckedChange={() => setFilters({ ...filters, date: "yesterday" })}
-                >
-                  Yesterday
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={filters.date === "week"}
-                  onCheckedChange={() => setFilters({ ...filters, date: "week" })}
-                >
-                  This Week
-                </DropdownMenuCheckboxItem>
+                {["all", "today", "yesterday", "week"].map((val) => (
+                  <DropdownMenuCheckboxItem
+                    key={val}
+                    checked={filters.date === val}
+                    onCheckedChange={() => setFilters({ ...filters, date: val })}
+                  >
+                    {val === "all" ? "ทั้งหมด" : val === "today" ? "วันนี้" : val === "yesterday" ? "เมื่อวาน" : "สัปดาห์นี้"}
+                  </DropdownMenuCheckboxItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -165,7 +202,7 @@ export default function HospitalCases() {
                 className="rounded-r-none"
                 onClick={() => setViewMode("list")}
               >
-                List
+                รายการ
               </Button>
               <Button
                 variant={viewMode === "map" ? "secondary" : "ghost"}
@@ -174,41 +211,59 @@ export default function HospitalCases() {
                 onClick={() => setViewMode("map")}
               >
                 <MapPin className="h-4 w-4 mr-1" />
-                Map
+                แผนที่
               </Button>
             </div>
           </div>
         </div>
 
-        {/* Stats cards */}
+        {/* Stats */}
         <HospitalStatusCards stats={stats} />
 
-        {/* Case list or map */}
+        {/* List or Map View */}
         {viewMode === "list" ? (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {filteredCases.length === 0 ? (
-              <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
+              <div className="col-span-full text-center py-8 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
                 <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-slate-400" />
-                <p className="text-slate-500 dark:text-slate-400">No cases found matching your criteria</p>
+                <p className="text-slate-500 dark:text-slate-400">ไม่พบเคสที่ตรงกับเงื่อนไข</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {filteredCases.map((emergencyCase) => (
+              filteredCases.map((emergencyCase) => (
+                <div key={emergencyCase.id} id={`case-${emergencyCase.id}`}>
                   <HospitalCaseCard
-                    key={emergencyCase.id}
                     {...emergencyCase}
                     onTransfer={handleTransferCase}
                     onCancel={handleCancelCase}
                   />
-                ))}
-              </div>
+                </div>
+              ))
             )}
           </div>
         ) : (
-          <div className="space-y-4">
-            <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
-              Showing {filteredCases.length} emergency cases on the map. Hover over markers for details.
-            </p>
+          // ใช้ key เพื่อบังคับ re-create DOM ใหม่ทุกครั้ง
+          <div
+            key={getMapLocations.map(l => l.id).join("-")}
+            className="relative h-96 lg:h-[600px] rounded-lg overflow-hidden border"
+          >
+            <MapView
+              locations={getMapLocations}
+              selectedLocation={selectedLocation}
+              setSelectedLocation={setSelectedLocation}
+            />
+            {selectedLocation && (
+              <div className="absolute bottom-4 left-4 right-4 bg-white dark:bg-slate-800 p-4 rounded-lg shadow-lg z-10 max-w-sm">
+                <p className="font-bold text-sm">{selectedLocation.title}</p>
+                <p className="text-xs text-slate-600">ผู้ป่วย: {selectedLocation.patientName}</p>
+                <p className="text-xs text-slate-600">ที่อยู่: {selectedLocation.address}</p>
+                <div className="flex gap-2 mt-2">
+                  <Badge variant={selectedLocation.severity === 4 ? "destructive" : "secondary"}>
+                    Grade {selectedLocation.severity}
+                  </Badge>
+                  <Badge variant="outline">{selectedLocation.status}</Badge>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
