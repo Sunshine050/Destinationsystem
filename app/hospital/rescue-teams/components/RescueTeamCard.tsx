@@ -23,7 +23,9 @@ export const RescueTeamCard: React.FC<RescueTeamCardProps> = ({ team }) => (
             <p className="text-sm text-slate-500">{team.id}</p>
           </div>
         </div>
-        <Badge className={getStatusColor(team.status)}>{getStatusLabel(team.status)}</Badge>
+        <Badge className={getStatusColor(team.status)}>
+          {getStatusLabel(team.status)}
+        </Badge>
       </div>
     </CardHeader>
     <CardContent className="space-y-4">
@@ -65,8 +67,21 @@ export const RescueTeamCard: React.FC<RescueTeamCardProps> = ({ team }) => (
       )}
 
       <div className="pt-4 flex justify-between items-center border-t border-slate-200 dark:border-slate-700">
-        <p className="text-sm text-slate-500">Last active: {new Date(team.lastActive).toLocaleString()}</p>
-        <Button variant="outline" size="sm">Contact Team</Button>
+        <p className="text-sm text-slate-500">
+          Last active: {team.lastActive ? new Date(team.lastActive).toLocaleString("th-TH") : "ไม่พบข้อมูล"}
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            if (team.contact) {
+              window.location.href = `tel:${team.contact}`;
+            }
+          }}
+          className="transition-all hover:bg-slate-100 dark:hover:bg-slate-700"
+        >
+          Contact Team
+        </Button>
       </div>
     </CardContent>
   </Card>

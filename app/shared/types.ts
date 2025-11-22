@@ -271,3 +271,23 @@ export interface HospitalSettings {
   emergencyCapacity: number;
   ambulanceCount: number;
 }
+
+
+// ใส่ด้านบนของไฟล์ shared/types.ts (ก่อน RescueTeam)
+// ใส่ด้านบนของไฟล์ ก่อน `export interface RescueTeam`
+export interface ApiRescueTeam {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  latitude: number;
+  longitude: number;
+  contactPhone: string;
+  contactEmail?: string;
+  status: "ACTIVE" | "INACTIVE";
+  vehicleTypes: string[];
+  createdAt: string;
+  updatedAt: string;
+}
