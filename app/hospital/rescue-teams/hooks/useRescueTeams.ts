@@ -14,13 +14,13 @@ const mapApiToRescueTeam = (api: ApiRescueTeam): RescueTeam => ({
   status: api.status === "ACTIVE" ? "available" : "offline",
   members: 4, // หรือดึงจาก backend
   location: {
-    address: `${api.address}, ${api.city}, ${api.state} ${api.postalCode}`
+    address: `${api.address || ''}, ${api.city || ''}, ${api.state || ''} ${api.postalCode || ''}`
       .replace(/,\s+/g, ", ")
       .trim(),
-    coordinates: { lat: api.latitude, lng: api.longitude },
+    coordinates: { lat: api.latitude ?? 0, lng: api.longitude ?? 0 },
   },
   contact: api.contactPhone,
-  vehicle: api.vehicleTypes
+  vehicle: (api.vehicleTypes || [])
     .map((v) => (v === "ambulance" ? "รถพยาบาล" : v === "firetruck" ? "รถดับเพลิง" : v))
     .join(", "),
   activeMission: undefined,
@@ -33,19 +33,33 @@ const mapApiToRescueTeam = (api: ApiRescueTeam): RescueTeam => ({
 export const useRescueTeams = () => {
   const [teams, setTeams] = useState<RescueTeam[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const loadTeams = async () => {
+    setIsLoading(true);
+    setError(null);
     try {
-      const apiData = await fetchRescueTeams();               // ← TS infer ได้ถูกต้อง
+      const apiData = await fetchRescueTeams();
       const mappedData = apiData.map(mapApiToRescueTeam);
       setTeams(mappedData);
     } catch (err: any) {
-      toast({
-        title: "โหลดข้อมูลทีมกู้ภัยล้มเหลว",
-        description: err.message ?? "กรุณาลองใหม่อีกครั้ง",
-        variant: "destructive",
-      });
+      console.error("Error loading rescue teams:", err);
+      
+      // ถ้าเป็น 403 Forbidden ให้แสดงข้อความเฉพาะ
+      if (err.message?.includes("Forbidden") || err.message?.includes("403")) {
+        setError("คุณไม่มีสิทธิ์เข้าถึงข้อมูลทีมกู้ภัย กรุณาติดต่อผู้ดูแลระบบ");
+      } else {
+        setError(err.message ?? "ไม่สามารถโหลดข้อมูลทีมกู้ภัยได้");
+        toast({
+          title: "โหลดข้อมูลทีมกู้ภัยล้มเหลว",
+          description: err.message ?? "กรุณาลองใหม่อีกครั้ง",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -56,7 +70,7 @@ export const useRescueTeams = () => {
 
   const handleCreateTeam = async (newTeamData: CreateRescueTeamDto) => {
     try {
-      const createdApiTeam = await createRescueTeam(newTeamData); // ← ApiRescueTeam
+      const createdApiTeam = await createRescueTeam(newTeamData);
       const mappedTeam = mapApiToRescueTeam(createdApiTeam);
       setTeams((prev) => [...prev, mappedTeam]);
       toast({ title: "สร้างทีมกู้ภัยสำเร็จ", variant: "default" });
@@ -97,5 +111,7 @@ export const useRescueTeams = () => {
     setSearchQuery,
     handleCreateTeam,
     loadTeams,
+    isLoading,
+    error,
   };
 };
