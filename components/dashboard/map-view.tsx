@@ -5,7 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { cn } from "@lib/utils";
-import { MapLocation } from '@/shared/types'; // ใช้จาก shared
+import { MapLocation } from '@/shared/types';
 
 // Fix Leaflet default icon
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -55,6 +55,7 @@ export default function MapView({
 }: MapProps) {
   const mapRef = useRef<L.Map | null>(null);
 
+  // Clean up on unmount to prevent re-initialization errors
   useEffect(() => {
     return () => {
       if (mapRef.current) {
@@ -74,10 +75,10 @@ export default function MapView({
 
   return (
     <MapContainer
-      key={locations.map(l => l.id).join("-")}
       center={{ lat: 13.7563, lng: 100.5018 }}
       zoom={10}
       className={cn("w-full h-full", className)}
+      scrollWheelZoom={true}
     >
       <TileLayer
         attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>'

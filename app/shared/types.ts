@@ -67,10 +67,60 @@ export interface Hospital {
   postalCode?: string;
   contactPhone?: string;
   contactEmail?: string;
-  availableBeds?: number;
-  medicalInfo?: Record<string, any>;
+  latitude?: number;
+  longitude?: number;
+  availableBeds?: number; // ใน database table โดยตรง
+  medicalInfo?: {
+    capacity?: {
+      totalBeds?: number;
+      availableBeds?: number;
+      icuBeds?: number;
+      availableIcuBeds?: number;
+    };
+    [key: string]: any;
+  };
   createdAt?: string | Date;
   updatedAt?: string | Date;
+}
+
+// ==============================
+// 🚑 RESCUE TEAM TYPES
+// ==============================
+export interface ApiRescueTeam {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  state?: string;
+  postalCode: string;
+  latitude?: number;
+  longitude?: number;
+  contactPhone: string;
+  contactEmail?: string;
+  status: "AVAILABLE" | "BUSY" | "OFF_DUTY" | "MAINTENANCE" | "ACTIVE" | "INACTIVE";
+  vehicleTypes?: string[];
+  createdAt: string;
+  updatedAt: string;
+  medicalInfo?: {
+    currentEmergencyId?: string;
+    notes?: string;
+    [key: string]: any;
+  };
+}
+
+export interface RescueTeam {
+  id: string;
+  name: string;
+  status: "available" | "on-mission" | "standby" | "offline";
+  members: number;
+  location: {
+    address: string;
+    coordinates: { lat: number; lng: number };
+  };
+  contact: string;
+  vehicle: string;
+  activeMission?: string;
+  lastActive: string;
 }
 
 // ==============================
@@ -194,7 +244,7 @@ export interface HospitalReport {
     criticalCases?: number;
     bedOccupancy?: number;
     bedUtilization?: number;
-    availableBeds?: number; // <-- สำคัญ
+    availableBeds?: number;
     staffUtilization?: number;
     equipmentUsage?: number;
     supplies?: number;
@@ -202,7 +252,7 @@ export interface HospitalReport {
     discharges?: number;
     transfers?: number;
     satisfaction?: number;
-    status?: string; // active / inactive
+    status?: string;
   };
   details?: any;
 }
@@ -245,22 +295,6 @@ export interface EmergencySettings {
   minUrgencyLevel: "CRITICAL" | "URGENT" | "NON_URGENT";
 }
 
-export interface RescueTeam {
-  id: string;
-  name: string;
-  status: "available" | "on-mission" | "standby" | "offline";
-  members: number;
-  location: {
-    address: string;
-    coordinates: { lat: number; lng: number };
-  };
-  contact: string;
-  vehicle: string;
-  activeMission?: string;
-  lastActive: string;
-}
-
-
 export interface HospitalSettings {
   hospitalName: string;
   address: string;
@@ -270,24 +304,4 @@ export interface HospitalSettings {
   icuBeds: number;
   emergencyCapacity: number;
   ambulanceCount: number;
-}
-
-
-// ใส่ด้านบนของไฟล์ shared/types.ts (ก่อน RescueTeam)
-// ใส่ด้านบนของไฟล์ ก่อน `export interface RescueTeam`
-export interface ApiRescueTeam {
-  id: string;
-  name: string;
-  address: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  latitude: number;
-  longitude: number;
-  contactPhone: string;
-  contactEmail?: string;
-  status: "ACTIVE" | "INACTIVE";
-  vehicleTypes: string[];
-  createdAt: string;
-  updatedAt: string;
 }

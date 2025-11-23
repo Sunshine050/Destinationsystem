@@ -90,9 +90,29 @@ export default function AuthPage() {
 
       console.log("Login response:", response.data);
 
-      const { access_token, refresh_token } = response.data;
+      const { access_token, refresh_token, user } = response.data;
       localStorage.setItem("access_token", access_token);
       localStorage.setItem("refresh_token", refresh_token);
+      
+      if (user) {
+        localStorage.setItem("user", JSON.stringify(user));
+      } else {
+        // Workaround: ถ้า Backend ไม่ส่ง user มา ให้ดึงเอง
+        try {
+          // ต้อง import fetchUserProfile จาก authService ก่อน
+          // แต่เนื่องจากเราอยู่ใน page.tsx และใช้ axios อาจจะต้องเรียก axios ตรงๆ หรือ import มา
+          // เพื่อความรวดเร็ว ผมจะใช้ axios เรียก /auth/me โดยตรงที่นี่เลย
+          console.log("⚠️ User object missing in login response, fetching profile...");
+          const profileResponse = await axios.get(`${API_BASE_URL}/auth/me`, {
+            headers: { Authorization: `Bearer ${access_token}` }
+          });
+          console.log("👤 User profile fetched:", profileResponse.data);
+          localStorage.setItem("user", JSON.stringify(profileResponse.data));
+        } catch (profileError) {
+          console.error("❌ Failed to fetch user profile:", profileError);
+          // ไม่ throw error เพื่อให้ user ยัง login ได้ (แต่อาจจะไม่มี data)
+        }
+      }
 
       toast({
         title: "ล็อกอินสำเร็จ",

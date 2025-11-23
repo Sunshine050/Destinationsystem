@@ -26,6 +26,8 @@ export default function HospitalDashboard() {
     handleCancelCase,
     setCases,
     fetchHospitals,
+    rescueTeams,
+    error,
   } = useHospitalDashboard();
 
   const [tabValue, setTabValue] = useState("all");
@@ -49,7 +51,7 @@ export default function HospitalDashboard() {
           </div>
         </div>
 
-        <HospitalDashboardCards stats={stats} />
+        <HospitalDashboardCards stats={stats} rescueTeams={rescueTeams} error={error} />
 
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between gap-4">

@@ -67,7 +67,7 @@ export default function HospitalCases() {
 
   // แปลงจาก hook → shared type
   const getMapLocations = (): SharedMapLocation[] => {
-    return getMapLocationsFromHook().map((loc) => ({
+    return getMapLocationsFromHook.map((loc) => ({
       ...loc,
       coordinates: [loc.coordinates.lat, loc.coordinates.lng] as [number, number],
     }));
@@ -109,8 +109,8 @@ export default function HospitalCases() {
             <Skeleton className="h-10 w-32" />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {[...Array(4)].map((_i) => (
-              <Skeleton key={_i} className="h-48 rounded-lg" />
+            {[...Array(4)].map((_i, index) => (
+              <Skeleton key={index} className="h-48 rounded-lg" />
             ))}
           </div>
         </div>
@@ -274,10 +274,7 @@ export default function HospitalCases() {
             )}
           </div>
         ) : (
-          <div
-            key={getMapLocations().map((l) => l.id).join("-")}
-            className="relative h-96 lg:h-[600px] rounded-lg overflow-hidden border"
-          >
+          <div key={`map-view-${viewMode}`} className="relative h-96 lg:h-[600px] rounded-lg overflow-hidden border">
             <MapView
               locations={getMapLocations()}
               selectedLocation={selectedLocation}
