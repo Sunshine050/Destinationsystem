@@ -2,8 +2,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useToast } from "@/shared/hooks/use-toast";
 import { fetchHospitals, updateHospitalStatus } from "@/shared/services/hospitalService";
+import { getAllEmergencyRequests } from "@/shared/services/emergencyService";
 import { statusColors, getCaseStatusLabel } from "@/shared/utils/statusUtils";
-import { Hospital } from "@/shared/types";
+import { Hospital, EmergencyCase } from "@/shared/types";
 import { webSocketClient } from "@lib/websocket";
 
 // ✅ import enum ให้ใช้ตรงจาก hospitalService
@@ -11,6 +12,7 @@ import { HospitalStatus } from "@/shared/services/hospitalService";
 
 export const useHospitals = () => {
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [cases, setCases] = useState<EmergencyCase[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -19,13 +21,17 @@ export const useHospitals = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const data = await fetchHospitals();
-      setHospitals(data);
+      const [hospitalsData, casesData] = await Promise.all([
+        fetchHospitals(),
+        getAllEmergencyRequests()
+      ]);
+      setHospitals(hospitalsData);
+      setCases(casesData);
     } catch (error) {
-      console.error("Error fetching hospitals:", error);
+      console.error("Error fetching data:", error);
       toast({
         title: "ข้อผิดพลาด",
-        description: "ไม่สามารถดึงข้อมูลโรงพยาบาลได้ กรุณาลองใหม่",
+        description: "ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่",
         variant: "destructive",
       });
     } finally {
@@ -105,19 +111,52 @@ export const useHospitals = () => {
     });
   }, [hospitals, searchQuery]);
 
-  const stats = useMemo(
-    () => ({
-      totalHospitals: hospitals.length,
-      totalAvailableBeds: hospitals.reduce(
-        (sum, h) => sum + (h.availableBeds ?? 0),
-        0
-      ),
-      activeHospitals: hospitals.filter(
-        (h) => h.status === HospitalStatus.ACTIVE
-      ).length,
-    }),
-    [hospitals]
-  );
+  const stats = useMemo(() => {
+    const totalHospitals = hospitals.length;
+    
+    // Calculate totals
+    const totalBeds = hospitals.reduce((sum, h) => sum + (h.medicalInfo?.capacity?.totalBeds || 0), 0);
+    const totalAvailable = hospitals.reduce((sum, h) => sum + (h.availableBeds || h.medicalInfo?.capacity?.availableBeds || 0), 0);
+    
+    // Calculate occupancy
+    const bedOccupancy = totalBeds > 0 
+      ? Math.round(((totalBeds - totalAvailable) / totalBeds) * 100) 
+      : 0;
+
+    // Calculate case stats
+    // Note: We are using real data here. If fields are missing in the API, they will be 0.
+    // We do not mock data.
+    
+    const totalPatients = cases.length; // Assuming 1 case = 1 patient
+    const emergencyCases = cases.filter(c => c.grade === 'CRITICAL' || c.grade === 'URGENT').length;
+    
+    // Response time calculation (if available)
+    // Assuming reportedAt is available, but we need a "respondedAt" or similar to calculate.
+    // Since we don't have explicit response timestamps in the basic type, we'll set to 0 for now
+    // or try to infer if there's a 'history' or 'logs' field (not visible in current types).
+    const avgResponseTime = 0; 
+
+    // These metrics require specific hospital operational data which is currently not in the Hospital model.
+    // Setting to 0 to reflect actual data availability.
+    const avgWaitTime = 0;
+    const satisfaction = 0;
+    const staffUtilization = 0;
+
+    return {
+      avgWaitTime,
+      bedOccupancy,
+      satisfaction,
+      staffUtilization,
+      totalPatients,
+      emergencyCases,
+      avgResponseTime,
+      
+      // Keep original stats for other components if needed
+      totalHospitals,
+      totalAvailableBeds: totalAvailable,
+      activeHospitals: hospitals.filter((h) => h.status === HospitalStatus.ACTIVE).length,
+    };
+  }, [hospitals, cases]);
 
   const handleContactHospital = (hospital: Hospital) => {
     if (hospital.contactPhone) {
@@ -147,6 +186,7 @@ export const useHospitals = () => {
     handleContactHospital,
     statusColors,
     getCaseStatusLabel,
+    cases,
     refetch: fetchData,
   };
 };
