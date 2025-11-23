@@ -13,7 +13,7 @@ export const CaseModal: React.FC<CaseModalProps> = ({ open, onOpenChange, select
   <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>รายละเอียดเคส #{selectedCase?.id}</DialogTitle>
+        <DialogTitle>รายละเอียดเคส #{selectedCase?.id?.substring(0, 8)}</DialogTitle>
         <div className="mt-2 space-y-4">
           {selectedCase && (
             <div className="space-y-4">
