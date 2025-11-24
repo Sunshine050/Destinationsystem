@@ -106,8 +106,6 @@ export default function HospitalsPage() {
                 key={hospital.id}
                 hospital={hospital}
                 onContact={handleContactHospital}
-                onUpdateStatus={handleUpdateStatus}
-                updatingId={updatingId}
               />
             ))
           )}

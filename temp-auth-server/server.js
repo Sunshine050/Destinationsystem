@@ -182,6 +182,75 @@ app.put('/api/settings/me', async (req, res) => {
   }
 });
 
+// User Management (Staff)
+app.get('/api/users', async (req, res) => {
+  const token = getToken(req);
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+  try {
+    // In a real app, check if user is admin
+    const { data: { users }, error } = await supabase.auth.admin.listUsers();
+    
+    if (error) throw error;
+    
+    // Filter/Map users to return necessary info
+    const staffUsers = users.map(u => ({
+      id: u.id,
+      email: u.email,
+      role: u.user_metadata?.role || 'staff', // Default to staff if not set
+      firstName: u.user_metadata?.firstName,
+      lastName: u.user_metadata?.lastName,
+      createdAt: u.created_at,
+      lastSignIn: u.last_sign_in_at
+    }));
+
+    return res.json(staffUsers);
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    return res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+app.post('/api/users', async (req, res) => {
+  const token = getToken(req);
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { email, password, firstName, lastName, role } = req.body;
+
+  try {
+    const { data: { user }, error } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { firstName, lastName, role }
+    });
+
+    if (error) throw error;
+
+    return res.status(201).json(user);
+  } catch (err) {
+    console.error('Error creating user:', err);
+    return res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
+app.delete('/api/users/:id', async (req, res) => {
+  const token = getToken(req);
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { id } = req.params;
+
+  try {
+    const { error } = await supabase.auth.admin.deleteUser(id);
+    if (error) throw error;
+
+    return res.json({ message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    return res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Temp Auth Server running on http://localhost:${PORT}`);
 });

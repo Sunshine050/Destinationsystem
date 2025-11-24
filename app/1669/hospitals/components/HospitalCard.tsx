@@ -16,15 +16,11 @@ import {
 interface HospitalCardProps {
   hospital: Hospital;
   onContact: (hospital: Hospital) => void;
-  onUpdateStatus: (id: string) => void;
-  updatingId: string | null;
 }
 
 export const HospitalCard: React.FC<HospitalCardProps> = ({
   hospital,
   onContact,
-  onUpdateStatus,
-  updatingId,
 }) => {
   const isAvailable = (hospital.availableBeds ?? 0) > 0;
 
@@ -62,10 +58,6 @@ export const HospitalCard: React.FC<HospitalCardProps> = ({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onUpdateStatus(hospital.id)}>
-              <Activity className="h-4 w-4 mr-2" />
-              อัปเดตสถานะ
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onContact(hospital)}>
               <Phone className="h-4 w-4 mr-2" />
               ติดต่อ
@@ -136,12 +128,6 @@ export const HospitalCard: React.FC<HospitalCardProps> = ({
             <Clock className="h-3 w-3" />
             อัปเดตล่าสุด: {hospital.updatedAt ? new Date(hospital.updatedAt).toLocaleDateString("th-TH") : "-"}
           </span>
-          {updatingId === hospital.id && (
-            <span className="flex items-center gap-1 text-blue-600">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              กำลังอัปเดต...
-            </span>
-          )}
         </div>
       </CardContent>
     </Card>

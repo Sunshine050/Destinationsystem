@@ -12,7 +12,7 @@ import { PremiumSwitch } from "./PremiumSwitch";
 import { Save, Loader2 } from "lucide-react";
 
 interface SettingsFormProps {
-  category: "profile" | "notification" | "system" | "communication" | "emergency";
+  category: "profile" | "notification" | "system" | "communication" | "emergency" | "caseManagement" | "dashboard";
   onSubmit: (data: any) => void | Promise<void>;
 }
 
@@ -158,26 +158,7 @@ export const SettingsForm: React.FC<SettingsFormProps> = ({ category, onSubmit }
 
           {category === "system" && (
             <>
-              <motion.div variants={item}>
-                <FormField control={form.control} name="theme" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>ธีมของระบบ</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="h-11">
-                          <SelectValue placeholder="เลือกธีม" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="light">สว่าง (Light)</SelectItem>
-                        <SelectItem value="dark">มืด (Dark)</SelectItem>
-                        <SelectItem value="system">ตามระบบ (System)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              </motion.div>
+
               <motion.div variants={item}>
                 <FormField control={form.control} name="language" render={({ field }) => (
                   <FormItem>
@@ -366,6 +347,82 @@ export const SettingsForm: React.FC<SettingsFormProps> = ({ category, onSubmit }
                         <SelectItem value="CRITICAL">วิกฤติ (Critical)</SelectItem>
                         <SelectItem value="URGENT">เร่งด่วน (Urgent)</SelectItem>
                         <SelectItem value="NON_URGENT">ไม่เร่งด่วน (Non-Urgent)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </motion.div>
+            </>
+          )}
+
+          {category === "caseManagement" && (
+            <>
+               <motion.div variants={item}>
+                <FormField control={form.control} name="autoForward" render={({ field }) => (
+                  <FormItem className="flex items-center justify-between rounded-xl border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base font-medium">ส่งต่อเคสอัตโนมัติ (Auto-forward)</FormLabel>
+                      <FormDescription>ส่งเคสไปยังโรงพยาบาลที่ใกล้ที่สุดโดยอัตโนมัติ</FormDescription>
+                    </div>
+                    <FormControl>
+                      <PremiumSwitch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )} />
+              </motion.div>
+              <motion.div variants={item}>
+                <FormField control={form.control} name="slaResponseTime" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>SLA: เวลาตอบกลับสูงสุด (นาที)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="5" {...field} onChange={(e) => field.onChange(+e.target.value)} className="h-11" />
+                    </FormControl>
+                    <FormDescription>เวลาที่กำหนดให้ทีมกู้ภัยต้องตอบรับงาน</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </motion.div>
+            </>
+          )}
+
+          {category === "dashboard" && (
+            <>
+               <motion.div variants={item}>
+                <FormField control={form.control} name="layout" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>รูปแบบการแสดงผล (Layout)</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="h-11">
+                          <SelectValue placeholder="เลือกรูปแบบ" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="standard">มาตรฐาน (Standard)</SelectItem>
+                        <SelectItem value="compact">กะทัดรัด (Compact)</SelectItem>
+                        <SelectItem value="map-focused">เน้นแผนที่ (Map Focused)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </motion.div>
+              <motion.div variants={item}>
+                <FormField control={form.control} name="refreshInterval" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>รีเฟรชข้อมูลอัตโนมัติ</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="h-11">
+                          <SelectValue placeholder="เลือกเวลา" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="5">ทุก 5 วินาที</SelectItem>
+                        <SelectItem value="10">ทุก 10 วินาที</SelectItem>
+                        <SelectItem value="30">ทุก 30 วินาที</SelectItem>
+                        <SelectItem value="60">ทุก 1 นาที</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

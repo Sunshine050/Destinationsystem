@@ -126,6 +126,25 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 setEmergencySettings(data);
                 newSettings = { emergencySettings: data };
                 break;
+            case "caseManagement":
+                // Handle case management settings (stored in systemSettings or separate field if backend supported)
+                // For now, we'll store it in systemSettings.caseManagement
+                const updatedSystemSettings = {
+                    ...systemSettings,
+                    caseManagement: data
+                };
+                setSystemSettings(updatedSystemSettings);
+                newSettings = { systemSettings: updatedSystemSettings };
+                break;
+            case "dashboard":
+                 // Handle dashboard settings
+                 const updatedDashboardSettings = {
+                    ...systemSettings,
+                    dashboard: data
+                 };
+                 setSystemSettings(updatedDashboardSettings);
+                 newSettings = { systemSettings: updatedDashboardSettings };
+                 break;
         }
 
         // Save to LocalStorage
@@ -143,9 +162,25 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                  // For profile, we might need to map fields if the API expects a specific DTO structure
                  // But SettingsService.settingsControllerPutMe accepts UpdateSettingsDto which has profileSettings
                  await SettingsService.settingsControllerPutMe({ profileSettings: data });
+            } else if (category === 'caseManagement' || category === 'dashboard') {
+                 // These are part of systemSettings in frontend state but might not be supported by backend DTO yet
+                 // We need to send the updated systemSettings object EXCLUDING client-only fields if backend is strict
+                 const { caseManagement, dashboard, ...cleanSystemSettings } = newSettings.systemSettings || {};
+                 
+                 // Only send if there are actual system settings to update
+                 if (Object.keys(cleanSystemSettings).length > 0) {
+                    await SettingsService.settingsControllerPutMe({ systemSettings: cleanSystemSettings });
+                 }
             } else {
                  const backendField = category === 'emergency' ? 'emergencySettings' : `${category}Settings`;
-                 await SettingsService.settingsControllerPutMe({ [backendField]: data });
+                 
+                 // If updating system settings directly, also clean it
+                 if (category === 'system') {
+                    const { caseManagement, dashboard, ...cleanData } = data;
+                    await SettingsService.settingsControllerPutMe({ systemSettings: cleanData });
+                 } else {
+                    await SettingsService.settingsControllerPutMe({ [backendField]: data });
+                 }
             }
         }
         

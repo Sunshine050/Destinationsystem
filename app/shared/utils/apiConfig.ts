@@ -6,6 +6,7 @@ export const configureApiClient = () => {
     if (token) {
       OpenAPI.TOKEN = token;
     }
+    // Pointing to real backend
     OpenAPI.BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   }
 };

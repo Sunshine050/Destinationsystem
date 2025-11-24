@@ -2273,7 +2273,69 @@
       },
       "UpdateSettingsDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "notificationSettings": {
+            "$ref": "#/components/schemas/NotificationSettingsDto"
+          },
+          "systemSettings": {
+            "$ref": "#/components/schemas/SystemSettingsDto"
+          },
+          "communicationSettings": {
+            "$ref": "#/components/schemas/CommunicationSettingsDto"
+          },
+          "profileSettings": {
+            "$ref": "#/components/schemas/ProfileSettingsDto"
+          },
+          "emergencySettings": {
+            "$ref": "#/components/schemas/EmergencySettingsDto"
+          }
+        }
+      },
+      "NotificationSettingsDto": {
+        "type": "object",
+        "properties": {
+          "emergencyAlerts": { "type": "boolean" },
+          "statusUpdates": { "type": "boolean" },
+          "systemNotifications": { "type": "boolean" },
+          "soundEnabled": { "type": "boolean" },
+          "emailNotifications": { "type": "boolean" },
+          "smsNotifications": { "type": "boolean" }
+        }
+      },
+      "SystemSettingsDto": {
+        "type": "object",
+        "properties": {
+          "language": { "type": "string" },
+          "timeZone": { "type": "string" },
+          "dateFormat": { "type": "string" },
+          "mapProvider": { "type": "string" },
+          "autoRefreshInterval": { "type": "string" },
+          "theme": { "type": "string", "enum": ["light", "dark", "system"] }
+        }
+      },
+      "CommunicationSettingsDto": {
+        "type": "object",
+        "properties": {
+          "primaryContactNumber": { "type": "string" },
+          "backupContactNumber": { "type": "string" },
+          "emergencyEmail": { "type": "string", "format": "email" },
+          "broadcastChannel": { "type": "string" }
+        }
+      },
+      "ProfileSettingsDto": {
+        "type": "object",
+        "properties": {
+          "firstName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "phone": { "type": "string" }
+        }
+      },
+      "EmergencySettingsDto": {
+        "type": "object",
+        "properties": {
+          "defaultRadius": { "type": "number" },
+          "minUrgencyLevel": { "type": "string", "enum": ["CRITICAL", "URGENT", "NON_URGENT"] }
+        }
       }
     }
   }

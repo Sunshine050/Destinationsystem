@@ -1,4 +1,3 @@
-// app/1669/settings/hooks/useSettings.ts
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -57,6 +56,20 @@ export const useSettings = () => {
     defaultValues: DEFAULT_EMERGENCY_SETTINGS,
   });
 
+  const caseManagementForm = useForm({
+    defaultValues: {
+      autoForward: false,
+      slaResponseTime: 5
+    }
+  });
+
+  const dashboardForm = useForm({
+    defaultValues: {
+      layout: "standard",
+      refreshInterval: "30"
+    }
+  });
+
   // Sync forms with context data
   useEffect(() => {
     if (!isSettingsLoading) {
@@ -65,8 +78,16 @@ export const useSettings = () => {
       communicationForm.reset(communicationSettings);
       profileForm.reset(profileSettings);
       emergencyForm.reset(emergencySettings);
+      
+      // Sync extended settings if they exist in systemSettings or elsewhere
+      if ((systemSettings as any).caseManagement) {
+        caseManagementForm.reset((systemSettings as any).caseManagement);
+      }
+      if ((systemSettings as any).dashboard) {
+        dashboardForm.reset((systemSettings as any).dashboard);
+      }
     }
-  }, [isSettingsLoading, notificationSettings, systemSettings, communicationSettings, profileSettings, emergencySettings, notificationForm, systemForm, communicationForm, profileForm, emergencyForm]);
+  }, [isSettingsLoading, notificationSettings, systemSettings, communicationSettings, profileSettings, emergencySettings, notificationForm, systemForm, communicationForm, profileForm, emergencyForm, caseManagementForm, dashboardForm]);
 
   const fetchNotificationsData = async () => {
     try {
@@ -128,6 +149,8 @@ export const useSettings = () => {
     communicationForm,
     profileForm,
     emergencyForm,
+    caseManagementForm,
+    dashboardForm,
     isLoading: isSettingsLoading,
     notifications,
     unreadCount,
@@ -136,6 +159,8 @@ export const useSettings = () => {
     onSubmitCommunication: (data: CommunicationSettings) => updateSettings("communication", data),
     onSubmitProfile: (data: ProfileSettings) => updateSettings("profile", data),
     onSubmitEmergency: (data: EmergencySettings) => updateSettings("emergency", data),
+    onSubmitCaseManagement: (data: any) => updateSettings("caseManagement", data),
+    onSubmitDashboard: (data: any) => updateSettings("dashboard", data),
     markNotificationAsRead,
     markAllNotificationsAsRead,
   };

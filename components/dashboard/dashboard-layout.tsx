@@ -325,16 +325,6 @@ export default function DashboardLayout({
             >
               {isSidebarOpen ? <ChevronsLeft className="h-5 w-5" /> : <ChevronsRight className="h-5 w-5" />}
             </Button>
-            
-            {/* Search Bar (Optional) */}
-            <div className="hidden md:flex items-center relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Search..." 
-                className="h-9 w-64 pl-9 pr-4 rounded-full bg-slate-100 dark:bg-slate-800 border-none text-sm focus:ring-2 focus:ring-primary/20 transition-all"
-              />
-            </div>
           </div>
 
           <div className="flex items-center gap-2">

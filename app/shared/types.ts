@@ -275,6 +275,7 @@ export interface SystemSettings {
   dateFormat: string;
   mapProvider: string;
   autoRefreshInterval: string;
+  theme?: string;
 }
 
 export interface CommunicationSettings {
