@@ -16,6 +16,7 @@ export const systemSettingsSchema = z.object({
   dateFormat: z.string(),
   mapProvider: z.string(),
   autoRefreshInterval: z.string(),
+  theme: z.string().optional(),
 });
 
 export const communicationSettingsSchema = z.object({
@@ -52,6 +53,7 @@ export const DEFAULT_SYSTEM_SETTINGS = {
   dateFormat: "DD/MM/YYYY",
   mapProvider: "google",
   autoRefreshInterval: "30",
+  theme: "system",
 } as const;
 
 export const DEFAULT_COMMUNICATION_SETTINGS = {

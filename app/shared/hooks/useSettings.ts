@@ -3,8 +3,8 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/shared/hooks/use-toast";
-import { fetchUserProfile, saveUserSettings } from "@/shared/services/authService";
-import { fetchNotifications } from "@/shared/services/notificationService";
+import { useSettingsContext } from "@/shared/contexts/SettingsContext";
+import { fetchNotifications, markNotificationAsRead as apiMarkRead, markAllNotificationsAsRead as apiMarkAllRead } from "@/shared/services/notificationService";
 import { notificationSettingsSchema, systemSettingsSchema, communicationSettingsSchema, profileSettingsSchema, emergencySettingsSchema, DEFAULT_NOTIFICATION_SETTINGS, DEFAULT_SYSTEM_SETTINGS, DEFAULT_COMMUNICATION_SETTINGS, DEFAULT_PROFILE_SETTINGS, DEFAULT_EMERGENCY_SETTINGS } from "@/shared/utils/settingsUtils";
 import { webSocketClient } from "@lib/websocket";
 import {
@@ -18,61 +18,55 @@ import {
 
 
 export const useSettings = () => {
-  const [isLoading, setIsLoading] = useState(false);
+  const { 
+      notificationSettings, 
+      systemSettings, 
+      communicationSettings, 
+      profileSettings, 
+      emergencySettings, 
+      updateSettings, 
+      isLoading: isSettingsLoading 
+  } = useSettingsContext();
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const { toast } = useToast();
 
-  const notificationForm = useForm({
+  const notificationForm = useForm<NotificationSettings>({
     resolver: zodResolver(notificationSettingsSchema),
     defaultValues: DEFAULT_NOTIFICATION_SETTINGS,
   });
 
-  const systemForm = useForm({
+  const systemForm = useForm<SystemSettings>({
     resolver: zodResolver(systemSettingsSchema),
     defaultValues: DEFAULT_SYSTEM_SETTINGS,
   });
 
-  const communicationForm = useForm({
+  const communicationForm = useForm<CommunicationSettings>({
     resolver: zodResolver(communicationSettingsSchema),
     defaultValues: DEFAULT_COMMUNICATION_SETTINGS,
   });
 
-  const profileForm = useForm({
+  const profileForm = useForm<ProfileSettings>({
     resolver: zodResolver(profileSettingsSchema),
     defaultValues: DEFAULT_PROFILE_SETTINGS,
   });
 
-  const emergencyForm = useForm({
+  const emergencyForm = useForm<EmergencySettings>({
     resolver: zodResolver(emergencySettingsSchema),
     defaultValues: DEFAULT_EMERGENCY_SETTINGS,
   });
 
-  const fetchProfile = async () => {
-    try {
-      setIsLoading(true);
-      const data = await fetchUserProfile();
-      notificationForm.reset(data.notificationSettings || DEFAULT_NOTIFICATION_SETTINGS);
-      systemForm.reset(data.systemSettings || DEFAULT_SYSTEM_SETTINGS);
-      communicationForm.reset(data.communicationSettings || DEFAULT_COMMUNICATION_SETTINGS);
-      profileForm.reset({
-        firstName: data.firstName || "",
-        lastName: data.lastName || "",
-        phone: data.phone || "",
-      });
-      emergencyForm.reset(data.emergencySettings || DEFAULT_EMERGENCY_SETTINGS);
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
-      toast({ title: "ข้อผิดพลาด", description: "ไม่สามารถดึงข้อมูลโปรไฟล์และการตั้งค่าได้ กรุณาลองใหม่", variant: "destructive" });
-      notificationForm.reset(DEFAULT_NOTIFICATION_SETTINGS);
-      systemForm.reset(DEFAULT_SYSTEM_SETTINGS);
-      communicationForm.reset(DEFAULT_COMMUNICATION_SETTINGS);
-      profileForm.reset(DEFAULT_PROFILE_SETTINGS);
-      emergencyForm.reset(DEFAULT_EMERGENCY_SETTINGS);
-    } finally {
-      setIsLoading(false);
+  // Sync forms with context data
+  useEffect(() => {
+    if (!isSettingsLoading) {
+      notificationForm.reset(notificationSettings);
+      systemForm.reset(systemSettings);
+      communicationForm.reset(communicationSettings);
+      profileForm.reset(profileSettings);
+      emergencyForm.reset(emergencySettings);
     }
-  };
+  }, [isSettingsLoading, notificationSettings, systemSettings, communicationSettings, profileSettings, emergencySettings, notificationForm, systemForm, communicationForm, profileForm, emergencyForm]);
 
   const fetchNotificationsData = async () => {
     try {
@@ -81,44 +75,30 @@ export const useSettings = () => {
       setUnreadCount(data.filter((n) => !n.isRead).length);
     } catch (error) {
       console.error("Error fetching notifications:", error);
-      toast({ title: "ข้อผิดพลาด", description: "ไม่สามารถดึงข้อมูลการแจ้งเตือนได้ กรุณาลองใหม่", variant: "destructive" });
     }
   };
 
   const markNotificationAsRead = async (id: string) => {
     try {
-      await markNotificationAsRead(id);
+      await apiMarkRead(id);
       setNotifications((prev) => prev.map((notif) => (notif.id === id ? { ...notif, isRead: true } : notif)));
       setUnreadCount((prev) => Math.max(prev - 1, 0));
       toast({ title: "แจ้งเตือนถูกทำเครื่องหมายว่าอ่านแล้ว", description: "แจ้งเตือนนี้ถูกทำเครื่องหมายว่าอ่านแล้ว" });
     } catch (error) {
       console.error("Error marking notification as read:", error);
-      toast({ title: "ข้อผิดพลาด", description: "ไม่สามารถทำเครื่องหมายว่าอ่านแล้วได้ กรุณาลองใหม่", variant: "destructive" });
+      toast({ title: "ข้อผิดพลาด", description: "ไม่สามารถทำเครื่องหมายว่าอ่านแล้วได้", variant: "destructive" });
     }
   };
 
   const markAllNotificationsAsRead = async () => {
     try {
-      await markAllNotificationsAsRead();
+      await apiMarkAllRead();
       setNotifications((prev) => prev.map((notif) => ({ ...notif, isRead: true })));
       setUnreadCount(0);
       toast({ title: "ทำเครื่องหมายทั้งหมดว่าอ่านแล้ว", description: "แจ้งเตือนทั้งหมดถูกทำเครื่องหมายว่าอ่านแล้ว" });
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
-      toast({ title: "ข้อผิดพลาด", description: "ไม่สามารถทำเครื่องหมายทั้งหมดว่าอ่านแล้วได้ กรุณาลองใหม่", variant: "destructive" });
-    }
-  };
-
-  const saveSetting = async (category: string, data: any) => {
-    try {
-      setIsLoading(true);
-      await saveUserSettings({ [category]: data });
-      toast({ title: "บันทึกสำเร็จ", description: `ตั้งค่า ${category} ถูกบันทึกเรียบร้อยแล้ว` });
-    } catch (error) {
-      console.error(`Error saving ${category} settings:`, error);
-      toast({ title: "ข้อผิดพลาด", description: `ไม่สามารถบันทึกการตั้งค่า ${category} ได้ กรุณาลองใหม่`, variant: "destructive" });
-    } finally {
-      setIsLoading(false);
+      toast({ title: "ข้อผิดพลาด", description: "ไม่สามารถทำเครื่องหมายทั้งหมดว่าอ่านแล้วได้", variant: "destructive" });
     }
   };
 
@@ -135,7 +115,6 @@ export const useSettings = () => {
     };
     webSocketClient.on("notification", notificationHandler);
     fetchNotificationsData();
-    fetchProfile();
 
     return () => {
       webSocketClient.off("notification", notificationHandler);
@@ -149,14 +128,14 @@ export const useSettings = () => {
     communicationForm,
     profileForm,
     emergencyForm,
-    isLoading,
+    isLoading: isSettingsLoading,
     notifications,
     unreadCount,
-    onSubmitNotification: (data: NotificationSettings) => saveSetting("notificationSettings", data),
-    onSubmitSystem: (data: SystemSettings) => saveSetting("systemSettings", data),
-    onSubmitCommunication: (data: CommunicationSettings) => saveSetting("communicationSettings", data),
-    onSubmitProfile: (data: ProfileSettings) => saveSetting("profile", data),
-    onSubmitEmergency: (data: EmergencySettings) => saveSetting("emergencySettings", data),
+    onSubmitNotification: (data: NotificationSettings) => updateSettings("notification", data),
+    onSubmitSystem: (data: SystemSettings) => updateSettings("system", data),
+    onSubmitCommunication: (data: CommunicationSettings) => updateSettings("communication", data),
+    onSubmitProfile: (data: ProfileSettings) => updateSettings("profile", data),
+    onSubmitEmergency: (data: EmergencySettings) => updateSettings("emergency", data),
     markNotificationAsRead,
     markAllNotificationsAsRead,
   };

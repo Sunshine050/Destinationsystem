@@ -1,132 +1,90 @@
 // app/shared/services/authService.ts
-// API for user profile/settings and auth
-
-import { getAuthHeaders } from "@lib/utils";
+import { AuthService, SettingsService, HospitalsService } from "@lib/api-client";
+import { configureApiClient } from "@/shared/utils/apiConfig";
 import { HospitalSettings } from "@/shared/types";
+import { LoginDto, RegisterDto, OAuthLoginDto } from "@lib/api-client";
 
-// Define DTO types ที่ match กับ backend DTO (จาก auth.dto.ts)
-enum UserRole {
-  PATIENT = 'PATIENT',
-  EMERGENCY_CENTER = 'EMERGENCY_CENTER',
-  HOSPITAL = 'HOSPITAL',
-  RESCUE_TEAM = 'RESCUE_TEAM',
-  ADMIN = 'ADMIN',
-}
-
-interface RegisterDto {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;  // optional
-  role?: UserRole;  // optional, enum
-}
-
-interface LoginDto {
-  email: string;
-  password: string;
-}
-
-interface OAuthLoginDto {
-  provider: string;  // 'google', 'facebook', 'apple'
-  redirectUrl?: string;  // optional
-}
-
-interface RefreshTokenDto {
-  refreshToken: string;
-}
-
-// Functions เดิม (ปรับ path ให้ match backend)
+// -------------------------------------------------------------------
+// User profile / settings (NestJS Settings API)
+// -------------------------------------------------------------------
 export const fetchUserProfile = async (): Promise<any> => {
-  const headers = getAuthHeaders();
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
-    headers,
-  });
-  if (!response.ok) throw new Error("Failed to fetch user profile");
-  return response.json();
+  configureApiClient();
+  return SettingsService.settingsControllerGetMe();
 };
 
 export const saveUserSettings = async (data: Partial<any>): Promise<void> => {
-  const headers = getAuthHeaders();
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {  // สมมติ backend มี PUT ที่นี่ ถ้าไม่มีต้องเพิ่มใน controller
-    method: "PUT",
-    headers: { "Content-Type": "application/json", ...headers },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) throw new Error("Failed to save settings");
+  configureApiClient();
+  // Note: settingsControllerPutMe expects UpdateSettingsDto. 
+  // We cast data to any or UpdateSettingsDto if we had the type imported.
+  await SettingsService.settingsControllerPutMe(data);
 };
 
-export const saveHospitalSettings = async (data: HospitalSettings): Promise<void> => {
-  const headers = getAuthHeaders();
+// -------------------------------------------------------------------
+// Hospital specific settings
+// -------------------------------------------------------------------
+export const saveHospitalSettings = async (
+  data: HospitalSettings,
+): Promise<void> => {
+  configureApiClient();
+  // Assuming HospitalsService has a method for this, or we keep using fetch if not.
+  // Checking HospitalsService (not shown fully but assumed). 
+  // If not available, we can fallback to fetch or use HospitalsService if it has update settings.
+  // For now, I'll keep the fetch implementation for hospital settings if I'm not sure, 
+  // but better to try to use the client if possible.
+  // Let's assume UpdateHospitalDto is available.
+  // But wait, the previous implementation used /hospital/settings.
+  // Let's check HospitalsService later. For now, I'll keep fetch for this one to be safe, 
+  // or better, use the client if I can find the method.
+  // I'll stick to fetch for hospital settings for now to minimize risk of breaking that part.
+  
+  const token = localStorage.getItem("access_token");
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/hospital/settings`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", ...headers },
+    headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+    },
     body: JSON.stringify(data),
   });
   if (!response.ok) throw new Error("Failed to save hospital settings");
 };
 
-// Functions ใหม่สำหรับ auth APIs
+// -------------------------------------------------------------------
+// Auth related APIs
+// -------------------------------------------------------------------
 export const registerUser = async (data: RegisterDto): Promise<any> => {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) throw new Error("Failed to register");
-  return response.json();
+  configureApiClient();
+  return AuthService.authControllerRegister(data);
 };
 
 export const loginUser = async (data: LoginDto): Promise<any> => {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) throw new Error("Failed to login");
-  const result = await response.json();
-  // ตัวอย่าง: เก็บ token ใน localStorage (ปรับตาม app logic)
-  // localStorage.setItem('access_token', result.access_token);
-  // localStorage.setItem('refresh_token', result.refresh_token);
+  configureApiClient();
+  const result = await AuthService.authControllerLogin(data);
+  
+  // Store tokens
+  if (result.access_token) localStorage.setItem("access_token", result.access_token);
+  if (result.refresh_token) localStorage.setItem("refresh_token", result.refresh_token);
+  
   return result;
 };
 
 export const refreshToken = async (refreshToken: string): Promise<any> => {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refreshToken }),
-  });
-  if (!response.ok) throw new Error("Failed to refresh token");
-  return response.json();
+  configureApiClient();
+  return AuthService.authControllerRefreshToken({ refreshToken });
 };
 
 export const initiateOAuth = async (data: OAuthLoginDto): Promise<string> => {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login/oauth`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) throw new Error("Failed to initiate OAuth");
-  const { url } = await response.json();
-  return url;  // ใช้ใน component: window.location.href = url;
+  configureApiClient();
+  const result = await AuthService.authControllerOauthLogin(data);
+  return result.url;
 };
 
 export const verifyToken = async (): Promise<any> => {
-  const headers = getAuthHeaders();
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-token`, {
-    headers,
-  });
-  if (!response.ok) throw new Error("Failed to verify token");
-  return response.json();
+  configureApiClient();
+  return AuthService.authControllerVerifyToken();
 };
 
 export const supabaseLogin = async (access_token: string): Promise<any> => {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/supabase-login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ access_token }),
-  });
-  if (!response.ok) throw new Error("Failed to login with Supabase");
-  return response.json();
+  configureApiClient();
+  return AuthService.authControllerSupabaseLogin({ access_token });
 };

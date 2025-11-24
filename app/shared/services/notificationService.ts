@@ -1,77 +1,61 @@
-// app/shared/services/notificationService.ts
-// API for notifications (fetch/mark/delete/create)
+import { NotificationsService } from "@lib/api-client";
+import { configureApiClient } from "@/shared/utils/apiConfig";
+import { Notification } from "../types";
 
-import { getAuthHeaders } from "@lib/utils";
-import { Notification } from "../types";  // สมมติมี type Notification ใน ../types
-
-// Define DTO types ที่ match กับ backend DTO (จาก notification.dto.ts)
 export interface CreateNotificationDto {
   type: string;
   title: string;
   body: string;
   userId: string;
-  metadata?: Record<string, any>;  // optional
+  metadata?: Record<string, any>;
 }
 
-interface MarkAsReadDto {
-  notificationId: string;
-}
-
-// ดึง notifications ทั้งหมดของ user
 export const fetchNotifications = async (): Promise<Notification[]> => {
-  const headers = getAuthHeaders();
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications`, {
-    headers,
-  });
-  if (!response.ok) throw new Error(`ไม่สามารถดึงข้อมูลการแจ้งเตือน: ${response.statusText}`);
-  return response.json();
+  configureApiClient();
+  return NotificationsService.notificationControllerFindAll();
 };
 
-// สร้าง notification ใหม่ (POST)
 export const createNotification = async (data: CreateNotificationDto): Promise<Notification> => {
-  const headers = {
-    ...getAuthHeaders(),
-    "Content-Type": "application/json",
-  };
+  configureApiClient();
+  // Note: Create notification endpoint might not be in NotificationsService if it's not exposed or named differently.
+  // Checking NotificationsService.ts, there is no create method. 
+  // It might be internal or handled via socket. 
+  // If the previous implementation had it, maybe it was a custom endpoint or I missed it in swagger.
+  // Assuming it's not available in the generated client for now, I will keep the fetch implementation or throw error.
+  // But wait, the previous code had it: POST /notifications
+  // Let's check if I missed it in NotificationsService.ts. 
+  // It has FindAll, MarkAsRead, MarkAllAsRead, Delete. No Create.
+  // Maybe it's in another service or the swagger is incomplete?
+  // I'll keep the fetch implementation for createNotification for now to avoid breaking it if it exists but not in swagger.
+  // But I should use the API_URL from env.
+  
+  const token = localStorage.getItem("access_token");
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications`, {
     method: "POST",
-    headers,
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
     body: JSON.stringify(data),
   });
   if (!response.ok) throw new Error(`ไม่สามารถสร้างการแจ้งเตือน: ${response.statusText}`);
   return response.json();
 };
 
-// ทำเครื่องหมาย notification ว่าอ่านแล้ว (PUT)
 export const markAsRead = async (id: string): Promise<void> => {
-  const headers = getAuthHeaders();
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications/${id}/read`, {
-    method: "PUT",
-    headers,
-  });
-  if (!response.ok) throw new Error(`ไม่สามารถทำการแจ้งเตือน: ${response.statusText}`);
+  configureApiClient();
+  await NotificationsService.notificationControllerMarkAsRead(id);
 };
 
-// ทำเครื่องหมาย notification ทั้งหมดว่าอ่านแล้ว (PUT)
 export const markAllAsRead = async (): Promise<void> => {
-  const headers = getAuthHeaders();
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications/read-all`, {
-    method: "PUT",
-    headers,
-  });
-  if (!response.ok) throw new Error(`ไม่สามารถทำการแจ้งเตือนทั้งหมด: ${response.statusText}`);
+  configureApiClient();
+  await NotificationsService.notificationControllerMarkAllAsRead();
 };
 
-// ลบ notification (DELETE)
 export const deleteNotification = async (id: string): Promise<void> => {
-  const headers = getAuthHeaders();
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications/${id}`, {
-    method: "DELETE",
-    headers,
-  });
-  if (!response.ok) throw new Error(`ไม่สามารถลบการแจ้งเตือน: ${response.statusText}`);
+  configureApiClient();
+  await NotificationsService.notificationControllerDeleteNotification(id);
 };
 
-// Export alias
 export { markAsRead as markNotificationAsRead };
 export { markAllAsRead as markAllNotificationsAsRead };

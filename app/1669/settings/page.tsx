@@ -1,6 +1,7 @@
 "use client";
 
-import { useSettings } from "./hooks/useSettings";
+import { FormProvider } from "react-hook-form";
+import { useSettings } from "@/shared/hooks/useSettings";
 import { useAuth } from "@/shared/hooks/useAuth";
 import DashboardLayout from "@components/dashboard/dashboard-layout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@components/ui/card";
@@ -71,10 +72,12 @@ export default function EmergencyCenterSettings() {
               <CardDescription>แก้ไขข้อมูลส่วนตัวของคุณ</CardDescription>
             </CardHeader>
             <CardContent>
-              <SettingsForm
-                category="profile"
-                onSubmit={(data) => onSubmitProfile(data)}
-              />
+              <FormProvider {...profileForm}>
+                <SettingsForm
+                  category="profile"
+                  onSubmit={(data) => onSubmitProfile(data)}
+                />
+              </FormProvider>
             </CardContent>
           </Card>
 
@@ -87,10 +90,12 @@ export default function EmergencyCenterSettings() {
               <CardDescription>กำหนดวิธีการรับการแจ้งเตือนและการเตือน</CardDescription>
             </CardHeader>
             <CardContent>
-              <SettingsForm
-                category="notification"
-                onSubmit={(data) => onSubmitNotification(data)}
-              />
+              <FormProvider {...notificationForm}>
+                <SettingsForm
+                  category="notification"
+                  onSubmit={(data) => onSubmitNotification(data)}
+                />
+              </FormProvider>
             </CardContent>
           </Card>
 
@@ -103,10 +108,12 @@ export default function EmergencyCenterSettings() {
               <CardDescription>กำหนดการตั้งค่าระบบทั่วไป</CardDescription>
             </CardHeader>
             <CardContent>
-              <SettingsForm
-                category="system"
-                onSubmit={(data) => onSubmitSystem(data)}
-              />
+              <FormProvider {...systemForm}>
+                <SettingsForm
+                  category="system"
+                  onSubmit={(data) => onSubmitSystem(data)}
+                />
+              </FormProvider>
             </CardContent>
           </Card>
 
@@ -119,10 +126,12 @@ export default function EmergencyCenterSettings() {
               <CardDescription>กำหนดช่องทางการสื่อสารฉุกเฉิน</CardDescription>
             </CardHeader>
             <CardContent>
-              <SettingsForm
-                category="communication"
-                onSubmit={(data) => onSubmitCommunication(data)}
-              />
+              <FormProvider {...communicationForm}>
+                <SettingsForm
+                  category="communication"
+                  onSubmit={(data) => onSubmitCommunication(data)}
+                />
+              </FormProvider>
             </CardContent>
           </Card>
 
@@ -135,10 +144,12 @@ export default function EmergencyCenterSettings() {
               <CardDescription>กำหนดค่าพิเศษสำหรับการจัดการเหตุฉุกเฉิน</CardDescription>
             </CardHeader>
             <CardContent>
-              <SettingsForm
-                category="emergency"
-                onSubmit={(data) => onSubmitEmergency(data)}
-              />
+              <FormProvider {...emergencyForm}>
+                <SettingsForm
+                  category="emergency"
+                  onSubmit={(data) => onSubmitEmergency(data)}
+                />
+              </FormProvider>
             </CardContent>
           </Card>
         </div>
