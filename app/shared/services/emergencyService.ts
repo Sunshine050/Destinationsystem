@@ -1,55 +1,57 @@
 // app/shared/services/emergencyService.ts
-// API for emergencies (create/fetch/update/assign etc.)
+// Service layer for emergency (SOS) related API calls.
 
 import { getAuthHeaders } from "@lib/utils";
 import { normalizeCaseData } from "../utils/dataNormalization";
 import { EmergencyCase } from "../types";
 import { Report } from "@/shared/types";
+import { updateRescueTeamStatus } from "./rescueService"; // update team status after transfer
 
-// Define DTO types ที่ match กับ backend (infer จาก SosController/dto)
+// ---------------------------------------------------------------------------
+// DTO definitions (match backend expectations)
+// ---------------------------------------------------------------------------
 interface CreateEmergencyRequestDto {
-  type: string;  // เช่น 'accident', 'medical'
-  location?: { latitude: number; longitude: number };  // optional ถ้ามี
-  medicalInfo?: { severity: number; details: string };  // ปรับตาม fields จริง
-  // เพิ่ม fields อื่นจาก dto/sos.dto
+  type: string; // e.g. 'accident', 'medical'
+  location?: { latitude: number; longitude: number };
+  medicalInfo?: { severity: number; details: string };
+  // additional fields can be added as needed
 }
 
 interface UpdateEmergencyStatusDto {
-  status: string;  // เช่น 'in_progress', 'resolved'
-  notes?: string;  // optional
+  status: string; // e.g. 'IN_PROGRESS', 'CANCELLED', 'COMPLETED'
+  notes?: string;
 }
 
-interface AssignCaseDto {  // สำหรับ transfer (assign to team) จาก DashboardController
-  caseId: string;
-  teamId: string;  // หรือ hospitalId ถ้า assign hospital
-}
-
-interface CancelCaseDto {  // จาก DashboardController
-  caseId: string;
-  reason?: string;
-}
-
-// Functions เดิม (ปรับ path เป็น /sos/dashboard/active-emergencies)
+// ---------------------------------------------------------------------------
+// Core service functions
+// ---------------------------------------------------------------------------
+/** Fetch active emergencies for the dashboard */
 export const fetchActiveEmergencies = async (): Promise<EmergencyCase[]> => {
   const headers = getAuthHeaders();
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos/dashboard/active-emergencies`, {
     headers,
   });
-  if (!response.ok) throw new Error(`ไม่สามารถดึงข้อมูลเคสฉุกเฉิน: ${response.statusText}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch active emergencies: ${response.statusText}`);
+  }
   const data = await response.json();
   return data.map(normalizeCaseData);
 };
 
-export const fetchHospitals = async (): Promise<any[]> => {
+/** Fetch list of hospitals (used by 1669 dashboard) */
+export const fetchHospitals = async (): Promise<Array<{ id: string; name: string }>> => {
   const headers = getAuthHeaders();
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/hospitals`, {
     headers,
   });
-  if (!response.ok) throw new Error(`ไม่สามารถดึงข้อมูลโรงพยาบาล: ${response.statusText}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch hospitals: ${response.statusText}`);
+  }
   const data = await response.json();
-  return data.map((h: any) => ({ id: h.id, name: h.name || "โรงพยาบาลไม่มีชื่อ" }));
+  return data.map((h: any) => ({ id: h.id, name: h.name || "Unnamed Hospital" }));
 };
 
+/** Assign a case to a hospital (used by 1669 dashboard) */
 export const assignCase = async (caseId: string, hospitalId: string): Promise<any> => {
   const headers = getAuthHeaders();
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos/${caseId}/assign`, {
@@ -58,18 +60,21 @@ export const assignCase = async (caseId: string, hospitalId: string): Promise<an
     body: JSON.stringify({ hospitalId }),
   });
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`ไม่สามารถมอบหมายเคส: ${response.statusText} (${response.status}) - ${errorText}`);
+    const err = await response.text();
+    throw new Error(`Failed to assign case: ${response.statusText} - ${err}`);
   }
   return response.json();
 };
 
+/** Fetch reports (currently same endpoint as active emergencies) */
 export const fetchReports = async (): Promise<Report[]> => {
   const headers = getAuthHeaders();
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos/dashboard/active-emergencies`, {
     headers,
   });
-  if (!response.ok) throw new Error(`Failed to fetch reports: ${response.statusText}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch reports: ${response.statusText}`);
+  }
   const data = await response.json();
   return data.map((emergency: any) => ({
     id: emergency.id,
@@ -85,29 +90,7 @@ export const fetchReports = async (): Promise<Report[]> => {
   }));
 };
 
-// Implement transferCase ด้วย /dashboard/assign-case (สมมติ transfer to team)
-export const transferCase = async (caseId: string, team: string): Promise<void> => {
-  const headers = getAuthHeaders();
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dashboard/assign-case`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...headers },
-    body: JSON.stringify({ caseId, teamId: team }),  // สมมติ DTO { caseId, teamId }
-  });
-  if (!response.ok) throw new Error(`Failed to transfer case: ${response.statusText}`);
-};
-
-// Implement cancelCase ด้วย /dashboard/cancel-case
-export const cancelCase = async (caseId: string): Promise<void> => {
-  const headers = getAuthHeaders();
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dashboard/cancel-case`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...headers },
-    body: JSON.stringify({ caseId }),  // สมมติ DTO { caseId }
-  });
-  if (!response.ok) throw new Error(`Failed to cancel case: ${response.statusText}`);
-};
-
-// Functions ใหม่สำหรับ endpoints อื่น ๆ
+/** Create a new emergency request */
 export const createEmergencyRequest = async (data: CreateEmergencyRequestDto): Promise<any> => {
   const headers = getAuthHeaders();
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos`, {
@@ -115,10 +98,13 @@ export const createEmergencyRequest = async (data: CreateEmergencyRequestDto): P
     headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error(`Failed to create emergency: ${response.statusText}`);
+  if (!response.ok) {
+    throw new Error(`Failed to create emergency: ${response.statusText}`);
+  }
   return response.json();
 };
 
+/** Update the status of an emergency */
 export const updateEmergencyStatus = async (id: string, data: UpdateEmergencyStatusDto): Promise<any> => {
   const headers = getAuthHeaders();
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos/${id}/status`, {
@@ -126,36 +112,87 @@ export const updateEmergencyStatus = async (id: string, data: UpdateEmergencySta
     headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error(`Failed to update status: ${response.statusText}`);
+  if (!response.ok) {
+    throw new Error(`Failed to update status: ${response.statusText}`);
+  }
   return response.json();
 };
 
+/** Get emergencies created by the authenticated user */
 export const getEmergencyRequests = async (): Promise<EmergencyCase[]> => {
   const headers = getAuthHeaders();
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos`, {
-    headers,
-  });
-  if (!response.ok) throw new Error(`Failed to fetch user emergencies: ${response.statusText}`);
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos`, { headers });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch emergencies: ${response.statusText}`);
+  }
   const data = await response.json();
   return data.map(normalizeCaseData);
 };
 
+/** Get all emergencies (staff only) */
 export const getAllEmergencyRequests = async (): Promise<EmergencyCase[]> => {
   const headers = getAuthHeaders();
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos/all`, {
-    headers,
-  });
-  if (!response.ok) throw new Error(`Failed to fetch all emergencies: ${response.statusText}`);
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos/all`, { headers });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch all emergencies: ${response.statusText}`);
+  }
   const data = await response.json();
   return data.map(normalizeCaseData);
 };
 
+/** Get a single emergency by ID */
 export const getEmergencyRequestById = async (id: string): Promise<EmergencyCase> => {
   const headers = getAuthHeaders();
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos/${id}`, {
-    headers,
-  });
-  if (!response.ok) throw new Error(`Failed to fetch emergency by id: ${response.statusText}`);
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos/${id}`, { headers });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch emergency by id: ${response.statusText}`);
+  }
   const data = await response.json();
   return normalizeCaseData(data);
+};
+
+/** Transfer a case to a rescue team and set the team status to on‑mission */
+export const transferCase = async (
+  caseId: string,
+  teamId: string,
+  teamName: string
+): Promise<void> => {
+  const headers = getAuthHeaders();
+  // 1️⃣ Update case status to IN_PROGRESS with a note about the team
+  const caseRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos/${caseId}/status`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify({
+      status: "IN_PROGRESS",
+      notes: `Transferred to rescue team: ${teamName}`,
+    }),
+  });
+  if (!caseRes.ok) {
+    const err = await caseRes.text();
+    throw new Error(`Failed to transfer case: ${caseRes.statusText} - ${err}`);
+  }
+
+  // 2️⃣ Mark the rescue team as on‑mission
+  await updateRescueTeamStatus(teamId, {
+    status: "on-mission",
+    activeMission: caseId,
+    notes: `Assigned to case ${caseId}`,
+  });
+};
+
+/** Cancel a case (hospital view) */
+export const cancelCase = async (caseId: string): Promise<void> => {
+  const headers = getAuthHeaders();
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos/${caseId}/status`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify({
+      status: "CANCELLED",
+      notes: "Case cancelled by hospital",
+    }),
+  });
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Failed to cancel case: ${response.statusText} - ${err}`);
+  }
 };

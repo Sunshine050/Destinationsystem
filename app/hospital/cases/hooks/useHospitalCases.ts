@@ -5,7 +5,6 @@ import { EmergencyCase } from "@/shared/types";
 import {
   fetchActiveEmergencies,
   transferCase,
-  cancelCase,
 } from "@/shared/services/emergencyService";
 
 export interface MapLocation {
@@ -71,49 +70,30 @@ export const useHospitalCases = () => {
     });
   }, [cases, searchQuery, filters]);
 
-  const handleTransferCase = async (caseId: string) => {
+  const handleTransferCase = async (caseId: string, teamId: string, teamName: string) => {
     try {
-      await transferCase(caseId, "Rescue Team Alpha");
+      await transferCase(caseId, teamName);
       setCases((prev) =>
         prev.map((c) =>
           c.id === caseId
-            ? { ...c, status: "in-progress", assignedTo: "Rescue Team Alpha" }
+            ? { ...c, status: "in-progress", assignedTo: teamName }
             : c
         )
       );
       toast({
-        title: "โอนเคสสำเร็จ",
-        description: `เคส ${caseId} ถูกส่งไปยัง Rescue Team Alpha`,
+        title: "มอบหมายเคสสำเร็จ",
+        description: `เคส ${caseId.slice(0, 8)} ถูกส่งไปยัง ${teamName}`,
       });
     } catch (err: any) {
       toast({
-        title: "โอนเคสล้มเหลว",
+        title: "มอบหมายเคสล้มเหลว",
         description: err.message,
         variant: "destructive",
       });
+      throw err; // Re-throw so dialog can handle it
     }
   };
 
-  const handleCancelCase = async (caseId: string) => {
-    try {
-      await cancelCase(caseId);
-      setCases((prev) =>
-        prev.map((c) => (c.id === caseId ? { ...c, status: "cancelled" } : c))
-      );
-      toast({
-        title: "ยกเลิกเคสสำเร็จ",
-        description: `เคส ${caseId} ถูกยกเลิกแล้ว`,
-      });
-    } catch (err: any) {
-      toast({
-        title: "ยกเลิกเคสล้มเหลว",
-        description: err.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  // แก้ตรงนี้: ส่ง coordinates เป็น { lat, lng } + ครบทุก field
   const getMapLocations = useMemo((): MapLocation[] => {
     return filteredCases
       .filter((c) => c.location?.coordinates)
@@ -160,7 +140,6 @@ export const useHospitalCases = () => {
     filters,
     setFilters,
     handleTransferCase,
-    handleCancelCase,
     getMapLocations,
     refetch,
   };

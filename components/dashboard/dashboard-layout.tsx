@@ -25,7 +25,8 @@ import {
   Clock,
   Activity,
   Search,
-  ChevronRight
+  ChevronRight,
+  MapPin
 } from "lucide-react";
 import { Button } from '@components/ui/button';
 import {
@@ -109,14 +110,14 @@ export default function DashboardLayout({
     rescue: "Rescue Unit",
   };
 
-  const roleBasePath = {
+  const rolePaths = {
     "emergency-center": "/1669",
     hospital: "/hospital",
     rescue: "/rescue",
   };
 
   const getNavItems = (role: "emergency-center" | "hospital" | "rescue") => {
-    const basePath = roleBasePath[role];
+    const basePath = rolePaths[role];
     const items = [
       {
         name: "Dashboard",
@@ -148,6 +149,11 @@ export default function DashboardLayout({
       });
     } else if (role === "hospital") {
       items.splice(2, 0, {
+        name: "Real-Time Map",
+        icon: <MapPin className="h-5 w-5" />,
+        path: `${basePath}/cases/map`,
+      });
+      items.splice(3, 0, {
         name: "Rescue Teams",
         icon: <Ambulance className="h-5 w-5" />,
         path: `${basePath}/rescue-teams`,

@@ -122,8 +122,18 @@ export const useEmergencyCases = () => {
 
   const handleAssignCase = async (caseId: string, hospitalId: string) => {
     try {
-      await assignCase(caseId, hospitalId);
-      toast({ title: "มอบหมายเคสสำเร็จ", description: `เคส ${caseId.slice(-8)} ถูกมอบหมายแล้ว` });
+      const result = await assignCase(caseId, hospitalId);
+      
+      // แสดงข้อความที่มีรายละเอียดการอัปเดตเตียง
+      const bedInfo = result.bedUpdate;
+      const bedMessage = bedInfo 
+        ? `อัปเดต: ${bedInfo.type === 'ICU' ? 'เตียง ICU' : 'เตียงปกติ'} -1 (ระดับความรุนแรง: ${bedInfo.severity})`
+        : '';
+      
+      toast({ 
+        title: "มอบหมายเคสสำเร็จ", 
+        description: `เคส ${caseId.slice(-8)} ถูกมอบหมายแล้ว${bedMessage ? '\n' + bedMessage : ''}` 
+      });
       fetchData();
     } catch (error: any) {
       console.error("เกิดข้อผิดพลาดขณะมอบหมายเคส:", error);

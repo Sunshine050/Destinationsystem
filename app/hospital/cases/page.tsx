@@ -23,19 +23,23 @@ import { HospitalCaseCard } from "./components/HospitalCaseCard";
 import { HospitalStatusCards } from "@/shared/components/StatsCards";
 import { Skeleton } from "@components/ui/skeleton";
 import { Badge } from "@components/ui/badge";
+import { TransferToRescueDialog } from "./components/TransferToRescueDialog";
 
-// โหลด MapView แบบ dynamic + ปิด SSR
-const MapView = dynamic(() => import("@components/dashboard/map-view"), {
-  ssr: false,
-  loading: () => (
-    <div className="h-96 lg:h-[600px] flex items-center justify-center bg-slate-50 rounded-lg border">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-        <p className="text-sm text-slate-500">กำลังโหลดแผนที่...</p>
+// โหลด RealTimeMap แบบ dynamic + ปิด SSR
+const RealTimeMap = dynamic(
+  () => import("./components/RealTimeMap").then(mod => ({ default: mod.RealTimeMap })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-96 lg:h-[600px] flex items-center justify-center bg-slate-50 rounded-lg border">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <p className="text-sm text-slate-500">กำลังโหลดแผนที่...</p>
+        </div>
       </div>
-    </div>
-  ),
-});
+    ),
+  }
+);
 
 export default function HospitalCases() {
   useAuth();
@@ -60,19 +64,12 @@ export default function HospitalCases() {
     filters,
     setFilters,
     handleTransferCase,
-    handleCancelCase,
     getMapLocations: getMapLocationsFromHook,
     refetch,
   } = useHospitalCases();
 
-  // แปลงจาก hook → shared type
-  const getMapLocations = (): SharedMapLocation[] => {
-    return getMapLocationsFromHook.map((loc) => ({
-      ...loc,
-      coordinates: [loc.coordinates.lat, loc.coordinates.lng] as [number, number],
-    }));
-  };
-
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<SharedMapLocation | null>(null);
 
   const stats = {
@@ -266,36 +263,56 @@ export default function HospitalCases() {
                 <div key={emergencyCase.id} id={`case-${emergencyCase.id}`}>
                   <HospitalCaseCard
                     {...emergencyCase}
-                    onTransfer={handleTransferCase}
-                    onCancel={handleCancelCase}
+                    onTransfer={(caseId) => {
+                      setSelectedCaseId(caseId);
+                      setTransferDialogOpen(true);
+                    }}
                   />
                 </div>
               ))
             )}
           </div>
         ) : (
-          <div key={`map-view-${viewMode}`} className="relative h-96 lg:h-[600px] rounded-lg overflow-hidden border">
-            <MapView
-              locations={getMapLocations()}
-              selectedLocation={selectedLocation}
-              setSelectedLocation={setSelectedLocation}
+          <div key={`map-view-${viewMode}`} className="relative h-96 lg:h-[600px] rounded-lg overflow-hidden">
+            <RealTimeMap
+              cases={filteredCases}
+              selectedCaseId={selectedLocation?.id || null}
+              onCaseSelect={(caseId) => {
+                const caseData = filteredCases.find(c => c.id === caseId);
+                if (caseData) {
+                  setSelectedLocation({
+                    id: caseData.id,
+                    title: `เคส #${caseData.id.slice(0, 8)}`,
+                    severity: caseData.severity,
+                    coordinates: [caseData.location.coordinates.lat, caseData.location.coordinates.lng],
+                    address: caseData.location.address,
+                    description: caseData.description,
+                    patientName: caseData.patientName,
+                    status: caseData.status,
+                  });
+                }
+              }}
+              onTransferCase={(caseId) => {
+                setSelectedCaseId(caseId);
+                setTransferDialogOpen(true);
+              }}
+              className="h-full"
+              autoRefresh={true}
+              refreshInterval={15000}
             />
-            {selectedLocation && (
-              <div className="absolute bottom-4 left-4 right-4 bg-white dark:bg-slate-800 p-4 rounded-lg shadow-lg z-10 max-w-sm">
-                <p className="font-bold text-sm">{selectedLocation.title}</p>
-                <p className="text-xs text-slate-600">ผู้ป่วย: {selectedLocation.patientName}</p>
-                <p className="text-xs text-slate-600">ที่อยู่: {selectedLocation.address}</p>
-                <div className="flex gap-2 mt-2">
-                  <Badge variant={selectedLocation.severity === 4 ? "destructive" : "secondary"}>
-                    Grade {selectedLocation.severity}
-                  </Badge>
-                  <Badge variant="outline">{selectedLocation.status}</Badge>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
+
+      {/* Transfer to Rescue Dialog */}
+      {selectedCaseId && (
+        <TransferToRescueDialog
+          open={transferDialogOpen}
+          onOpenChange={setTransferDialogOpen}
+          caseId={selectedCaseId}
+          onTransfer={handleTransferCase}
+        />
+      )}
     </DashboardLayout>
   );
 }

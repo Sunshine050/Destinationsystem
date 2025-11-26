@@ -1,19 +1,31 @@
 // app/hospital/cases/components/HospitalCaseCard.tsx
-// Hospital-specific card (add transfer/cancel)
+// Hospital-specific card (transfer to rescue only)
 import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
 import { Button } from "@components/ui/button";
 import { Badge } from "@components/ui/badge";
-import { User, Phone, Map, Clock } from "lucide-react";
+import { User, Phone, MapPin, Clock, Truck } from "lucide-react";
 import { cn } from "@lib/utils";
 import { EmergencyCase } from "@/shared/types";
 import { statusColors, severityColors } from "@/shared/utils/statusUtils";
 
 interface HospitalCaseCardProps extends EmergencyCase {
   onTransfer: (id: string) => void;
-  onCancel: (id: string) => void;
 }
 
-export const HospitalCaseCard: React.FC<HospitalCaseCardProps> = ({ id, description, status, severity, reportedAt, patientName, contactNumber, emergencyType, location, assignedTo, symptoms, onTransfer, onCancel }) => (
+export const HospitalCaseCard: React.FC<HospitalCaseCardProps> = ({ 
+  id, 
+  description, 
+  status, 
+  severity, 
+  reportedAt, 
+  patientName, 
+  contactNumber, 
+  emergencyType, 
+  location, 
+  assignedTo, 
+  symptoms, 
+  onTransfer 
+}) => (
   <Card className="bg-white dark:bg-slate-800 shadow-lg hover:shadow-xl transition-shadow duration-200">
     <CardHeader className="pb-2">
       <div className="flex justify-between items-start">
@@ -33,7 +45,7 @@ export const HospitalCaseCard: React.FC<HospitalCaseCardProps> = ({ id, descript
             <p className="text-sm text-slate-600 dark:text-slate-400"><span className="font-medium">Contact:</span> {contactNumber}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Map className="h-4 w-4 text-slate-500" />
+            <MapPin className="h-4 w-4 text-slate-500" />
             <p className="text-sm text-slate-600 dark:text-slate-400"><span className="font-medium">Location:</span> {location.address}</p>
           </div>
         </div>
@@ -66,13 +78,9 @@ export const HospitalCaseCard: React.FC<HospitalCaseCardProps> = ({ id, descript
       {assignedTo && <p className="text-sm text-slate-600 dark:text-slate-400"><span className="font-medium">Assigned to:</span> {assignedTo}</p>}
       <div className="flex gap-2 pt-4 border-t border-slate-200 dark:border-slate-700">
         {status === "assigned" && (
-          <Button variant="outline" className="flex-1" onClick={() => onTransfer(id)}>
-            Transfer to Rescue
-          </Button>
-        )}
-        {(status === "assigned" || status === "in-progress") && (
-          <Button variant="destructive" className="flex-1" onClick={() => onCancel(id)}>
-            Cancel Case
+          <Button variant="default" className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => onTransfer(id)}>
+            <Truck className="h-4 w-4 mr-2" />
+            มอบหมายให้ทีมกู้ภัย
           </Button>
         )}
       </div>

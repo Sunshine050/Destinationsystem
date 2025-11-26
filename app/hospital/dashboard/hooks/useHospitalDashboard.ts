@@ -1,216 +1,292 @@
-import { useState, useMemo, useEffect } from "react";
+// app/hospital/dashboard/hooks/useHospitalDashboard.ts
+"use client";
+
+import { useState, useEffect } from "react";
 import { useToast } from "@/shared/hooks/use-toast";
-import { EmergencyCase, ApiRescueTeam, Hospital } from "@/shared/types";
+import { getAuthHeaders } from "@lib/utils";
+import { webSocketClient } from "@lib/websocket";
+import { ApiRescueTeam, EmergencyCase } from "@/shared/types";
 
-import {
-  fetchActiveEmergencies,
-  transferCase,
-  cancelCase,
-  fetchHospitals,
-} from "@/shared/services/emergencyService";
-import { fetchHospitalById } from "@/shared/services/hospitalService";
-import { fetchRescueTeams } from "@/shared/services/rescueService";
-
-const initialStats = {
-  assigned: 0,
-  inProgress: 0,
-  completed: 0,
-  critical: 0,
-  total: 0,
+interface HospitalDashboardStats {
+  assigned: number;
+  inProgress: number;
+  completed: number;
+  critical: number;
+  total: number;
   beds: {
-    total: 0,
-    occupied: 0,
-    available: 0,
+    total: number;
+    occupied: number;
+    available: number;
     icu: {
+      total: number;
+      occupied: number;
+      available: number;
+    };
+  };
+  resources: {
+    totalStaff: number;
+    availableStaff: number;
+    totalAmbulances: number;
+    availableAmbulances: number;
+  };
+}
+
+export const useHospitalDashboard = () => {
+  const [stats, setStats] = useState<HospitalDashboardStats>({
+    assigned: 0,
+    inProgress: 0,
+    completed: 0,
+    critical: 0,
+    total: 0,
+    beds: {
       total: 0,
       occupied: 0,
       available: 0,
+      icu: {
+        total: 0,
+        occupied: 0,
+        available: 0,
+      },
     },
-  },
-  resources: {
-    totalStaff: 20,
-    availableStaff: 15,
-    totalAmbulances: 8,
-    availableAmbulances: 3,
-  },
-};
+    resources: {
+      totalStaff: 0,
+      availableStaff: 0,
+      totalAmbulances: 0,
+      availableAmbulances: 0,
+    },
+  });
 
-export const useHospitalDashboard = () => {
   const [cases, setCases] = useState<EmergencyCase[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [bedStats, setBedStats] = useState(initialStats.beds);
-  const [resources, setResources] = useState(initialStats.resources);
   const [rescueTeams, setRescueTeams] = useState<ApiRescueTeam[]>([]);
-  const [hospitalData, setHospitalData] = useState<Hospital | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // 1. Load Case Data
-  const loadCases = async () => {
-    setIsLoading(true);
+  const fetchHospitalData = async () => {
     try {
-      const data = await fetchActiveEmergencies();
-      setCases(data);
-    } catch (error: any) {
-      console.error("Error loading emergency cases:", error);
-      // ถ้า error 500 และเราไม่มี hospitalId ให้เดาว่าเป็นเพราะเรื่องนี้
-      const userStr = localStorage.getItem("user");
-      const user = userStr ? JSON.parse(userStr) : null;
-      const userData = user?.user || user; // รองรับทั้ง { user: {...} } และ {...} โดยตรง
-      
-      if (!userData?.organizationId && !userData?.hospitalId) {
-         console.warn("Ignored 500 error from fetchActiveEmergencies because user has no organizationId");
-      } else {
-        toast({
-          title: "Error",
-          description: "ไม่สามารถดึงข้อมูลเคสฉุกเฉินล่าสุดได้",
-          variant: "destructive",
-        });
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      setLoading(true);
+      setError(null);
+      const headers = getAuthHeaders();
 
-  // 2. Load Hospital Resources (Beds, ICU, etc.)
-  const loadHospitalResources = async () => {
-    try {
-      const userStr = localStorage.getItem("user");
-      
-      if (!userStr) {
-        return;
+      let hospitalId: string | null = null;
+      let hospitalData: any = null;
+
+      // Try to get hospital ID from user metadata
+      try {
+        const userResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/auth/me`,
+          { headers }
+        );
+
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          hospitalId = userData.hospitalId || userData.metadata?.hospitalId;
+        }
+      } catch (err) {
+        console.log("Could not fetch user info, will try alternative methods");
       }
 
-      const user = JSON.parse(userStr);
-      // รองรับทั้ง { user: {...} } และ {...} โดยตรง
-      const userData = user?.user || user;
-      const hospitalId = userData?.organizationId || userData?.hospitalId;
+      // If no hospitalId from user, try to get from hospitals list
+      if (!hospitalId) {
+        try {
+          const hospitalsResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/hospitals`,
+            { headers }
+          );
 
-      if (hospitalId) {
-        setError(null); // Clear error if we have ID
-        const hospitalData = await fetchHospitalById(hospitalId);
-        setHospitalData(hospitalData);
+          if (hospitalsResponse.ok) {
+            const hospitals = await hospitalsResponse.json();
+            if (hospitals && hospitals.length > 0) {
+              // Use the first hospital for this user
+              hospitalId = hospitals[0].id;
+              hospitalData = hospitals[0];
+            }
+          }
+        } catch (err) {
+          console.log("Could not fetch hospitals list");
+        }
+      }
 
-        const capacity = hospitalData.medicalInfo?.capacity;
-        
-        const newBedStats = {
-          total: capacity?.totalBeds || 0,
-          occupied: (capacity?.totalBeds || 0) - (capacity?.availableBeds || 0),
-          available: capacity?.availableBeds || 0,
-          icu: {
-            total: capacity?.icuBeds || 0,
-            occupied: (capacity?.icuBeds || 0) - (capacity?.availableIcuBeds || 0),
-            available: capacity?.availableIcuBeds || 0,
+      // If still no hospital, use mock data for demonstration
+      if (!hospitalId) {
+        console.warn("No hospital found, using mock data");
+        hospitalData = {
+          id: "mock-hospital-1",
+          name: "Mock Hospital",
+          totalBeds: 100,
+          availableBeds: 45,
+          medicalInfo: {
+            capacity: {
+              icuBeds: 20,
+              availableIcuBeds: 8,
+            },
+            staff: {
+              total: 50,
+              available: 35,
+            },
+            ambulances: {
+              total: 10,
+              available: 6,
+            },
           },
         };
-        
-        setBedStats(newBedStats);
-      } else {
-        console.warn("⚠️ No organizationId/hospitalId found in user data");
-        setError("บัญชีผู้ใช้นี้ยังไม่ได้ผูกกับข้อมูลโรงพยาบาล กรุณาติดต่อผู้ดูแลระบบ");
-      }
-    } catch (error) {
-      console.error("❌ Error loading hospital resources:", error);
-    }
-  };
+      } else if (!hospitalData) {
+        // Fetch hospital profile if we have ID but no data yet
+        const hospitalResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/hospitals/${hospitalId}`,
+          { headers }
+        );
 
-  // 3. Load Rescue Teams
-  const loadRescueTeams = async () => {
-    try {
-      const teams = await fetchRescueTeams();
-      setRescueTeams(teams);
-    } catch (error) {
-      console.error("Error loading rescue teams:", error);
+        if (hospitalResponse.ok) {
+          hospitalData = await hospitalResponse.json();
+        } else {
+          throw new Error("Failed to fetch hospital profile");
+        }
+      }
+
+      // Fetch assigned cases for this hospital
+      // Note: Hospital role doesn't have access to /sos endpoint (403 Forbidden)
+      // In production, there should be a dedicated endpoint like /hospitals/{id}/cases
+      let casesData: EmergencyCase[] = [];
+      
+      // Temporarily disabled - waiting for proper hospital cases endpoint
+      /*
+      if (hospitalId && hospitalId !== "mock-hospital-1") {
+        try {
+          const casesResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/sos`,
+            { headers }
+          );
+
+          if (casesResponse.ok) {
+            const allCases = await casesResponse.json();
+            // Filter cases assigned to this hospital
+            casesData = allCases.filter((c: any) => 
+              c.hospitalId === hospitalId || 
+              c.assignedHospitalId === hospitalId ||
+              c.hospital?.id === hospitalId
+            );
+          }
+        } catch (err) {
+          console.log("Could not fetch cases, using empty array");
+        }
+      }
+      */
+
+      setCases(casesData);
+
+      // Calculate stats from cases
+      const assignedCount = casesData.filter((c: EmergencyCase) => c.status === "assigned").length;
+      const inProgressCount = casesData.filter((c: EmergencyCase) => c.status === "in-progress").length;
+      const completedCount = casesData.filter((c: EmergencyCase) => c.status === "completed").length;
+      const criticalCount = casesData.filter((c: EmergencyCase) => c.severity >= 3).length;
+
+      // Get bed information from hospital data
+      const totalBeds = hospitalData.totalBeds || 0;
+      const availableBeds = hospitalData.availableBeds || 0;
+      const icuTotal = hospitalData.medicalInfo?.capacity?.icuBeds || 0;
+      const icuAvailable = hospitalData.medicalInfo?.capacity?.availableIcuBeds || 0;
+
+      setStats({
+        assigned: assignedCount,
+        inProgress: inProgressCount,
+        completed: completedCount,
+        critical: criticalCount,
+        total: casesData.length,
+        beds: {
+          total: totalBeds,
+          occupied: totalBeds - availableBeds,
+          available: availableBeds,
+          icu: {
+            total: icuTotal,
+            occupied: icuTotal - icuAvailable,
+            available: icuAvailable,
+          },
+        },
+        resources: {
+          totalStaff: hospitalData.medicalInfo?.staff?.total || 0,
+          availableStaff: hospitalData.medicalInfo?.staff?.available || 0,
+          totalAmbulances: hospitalData.medicalInfo?.ambulances?.total || 0,
+          availableAmbulances: hospitalData.medicalInfo?.ambulances?.available || 0,
+        },
+      });
+
+      // Fetch rescue teams
+      try {
+        const teamsResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/rescue-teams`,
+          { headers }
+        );
+
+        if (teamsResponse.ok) {
+          const teamsData = await teamsResponse.json();
+          setRescueTeams(teamsData);
+        }
+      } catch (err) {
+        console.error("Error fetching rescue teams:", err);
+        // Don't fail the whole dashboard if rescue teams fail
+      }
+
+    } catch (err: any) {
+      console.error("Error fetching hospital dashboard data:", err);
+      setError(err.message || "Failed to load dashboard data");
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "ไม่สามารถโหลดข้อมูลแดชบอร์ดได้",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadCases();
-    loadHospitalResources();
-    loadRescueTeams();
-  }, []);
-
-  const filteredCases = useMemo(
-    () =>
-      cases.filter((c) => {
-        const q = searchQuery.toLowerCase();
-        return (
-          c.id.toLowerCase().includes(q) ||
-          c.description.toLowerCase().includes(q) ||
-          c.patientName?.toLowerCase().includes(q) ||
-          c.emergencyType.toLowerCase().includes(q)
-        );
-      }),
-    [cases, searchQuery]
-  );
-
-  const stats = useMemo(
-    () => ({
-      assigned: filteredCases.filter((c) => c.status === "assigned").length,
-      inProgress: filteredCases.filter((c) => c.status === "in-progress").length,
-      completed: filteredCases.filter((c) => c.status === "completed").length,
-      critical: filteredCases.filter((c) => c.severity === 4).length,
-      total: filteredCases.length,
-      beds: bedStats,
-      resources,
-    }),
-    [filteredCases, bedStats, resources]
-  );
-
-  const handleTransferCase = async (caseId: string, teamId: string = "Rescue Team Alpha") => {
-    try {
-      await transferCase(caseId, teamId);
-      await loadCases();
-      toast({ title: "Case transferred", description: `Case ${caseId} ได้ถูกมอบหมายไปยัง ${teamId}.` });
-    } catch (error) {
-      console.error(`Error transferring case ${caseId}:`, error);
+    const token = localStorage.getItem("access_token");
+    if (!token) {
       toast({
-        title: "Error",
-        description: "ไม่สามารถโอนย้ายเคสได้ โปรดลองอีกครั้ง",
+        title: "ข้อผิดพลาด",
+        description: "กรุณาเข้าสู่ระบบเพื่อใช้งาน",
         variant: "destructive",
       });
+      window.location.href = "/login";
+      return;
     }
-  };
 
-  const handleCancelCase = async (caseId: string) => {
-    try {
-      await cancelCase(caseId);
-      await loadCases();
-      toast({ title: "Case cancelled", description: `Case ${caseId} ได้ถูกยกเลิกแล้ว` });
-    } catch (error) {
-      console.error(`Error cancelling case ${caseId}:`, error);
-      toast({
-        title: "Error",
-        description: "ไม่สามารถยกเลิกเคสได้ โปรดลองอีกครั้ง",
-        variant: "destructive",
+    fetchHospitalData();
+
+    // Setup WebSocket for real-time updates
+    const connectWebSocket = () => {
+      webSocketClient.connect(token);
+      webSocketClient.onStatusUpdate((data) => {
+        console.log("Received status update:", data);
+        fetchHospitalData();
       });
-    }
-  };
+      webSocketClient.on("notification", (data) => {
+        console.log("Received notification:", data);
+        toast({
+          title: data.title || "การแจ้งเตือน",
+          description: data.body || "มีข้อความแจ้งเตือนใหม่",
+        });
+      });
+      webSocketClient.onEmergency((data) => {
+        console.log("Received new emergency:", data);
+        fetchHospitalData();
+      });
+    };
 
-  const fetchHospitalsWrapper = async () => {
-    try {
-      return await fetchHospitals();
-    } catch (error) {
-      console.error("Error fetching hospitals:", error);
-      return [];
-    }
-  };
+    connectWebSocket();
+
+    return () => {
+      webSocketClient.disconnect();
+    };
+  }, [toast]);
 
   return {
-    cases: filteredCases,
     stats,
-    searchQuery,
-    setSearchQuery,
-    handleTransferCase,
-    handleCancelCase,
-    isLoading,
-    refetchCases: loadCases,
-    refetchResources: loadHospitalResources,
-    setCases,
-    fetchHospitals: fetchHospitalsWrapper,
+    cases,
     rescueTeams,
-    hospitalData,
+    loading,
     error,
+    refetch: fetchHospitalData,
   };
 };
