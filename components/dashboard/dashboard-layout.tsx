@@ -148,11 +148,6 @@ export default function DashboardLayout({
         path: `${basePath}/hospitals`,
       });
     } else if (role === "hospital") {
-      items.splice(2, 0, {
-        name: "Real-Time Map",
-        icon: <MapPin className="h-5 w-5" />,
-        path: `${basePath}/cases/map`,
-      });
       items.splice(3, 0, {
         name: "Rescue Teams",
         icon: <Ambulance className="h-5 w-5" />,

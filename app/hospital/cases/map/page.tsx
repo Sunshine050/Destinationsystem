@@ -10,7 +10,7 @@ import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import { Badge } from "@components/ui/badge";
 import { 
-  RefreshCw, 
+
   Search, 
   Filter, 
   X,
@@ -70,10 +70,7 @@ export default function HospitalMapPage() {
   const [showSidebar, setShowSidebar] = useState(true);
 
   // Auto refresh every 15 seconds
-  useEffect(() => {
-    const interval = setInterval(refetch, 15000);
-    return () => clearInterval(interval);
-  }, [refetch]);
+
 
   const selectedCase = selectedCaseId 
     ? filteredCases.find(c => c.id === selectedCaseId) 
@@ -115,15 +112,6 @@ export default function HospitalMapPage() {
                 <span className="font-bold">{stats.critical}</span> เร่งด่วน
               </Badge>
               
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={refetch}
-                disabled={loading}
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              </Button>
-
               <Button
                 size="sm"
                 variant="outline"
