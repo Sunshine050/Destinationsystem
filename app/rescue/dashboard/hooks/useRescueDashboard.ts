@@ -1,15 +1,12 @@
-// hooks/useRescueDashboard.ts
 import { useState, useEffect } from "react";
 import { useToast } from "@/shared/hooks/use-toast";
 
-// === Emergency APIs ===
 import {
-  fetchActiveEmergencies,
+  fetchRescueAssignedCases,
   updateEmergencyStatus,
   cancelCase,
 } from "@/shared/services/emergencyService";
 
-// === Auth Services ===
 import {
   fetchUserProfile,
   saveUserSettings,
@@ -22,7 +19,6 @@ import {
   supabaseLogin,
 } from "@/shared/services/authService";
 
-// === Rescue Team Services ===
 import {
   createRescueTeam,
   fetchRescueTeams,
@@ -32,7 +28,6 @@ import {
   fetchAvailableTeams,
 } from "@/shared/services/rescueService";
 
-// === Notification Services (เพิ่มใหม่ทั้งหมด) ===
 import {
   fetchNotifications,
   createNotification,
@@ -43,9 +38,11 @@ import {
   markAllNotificationsAsRead,
 } from "@/shared/services/notificationService";
 
-import { EmergencyCase } from "@/shared/types";
+import { EmergencyCase, EmergencyRequestFromApi, ApiRescueTeam } from "@/shared/types";
 
-// === Enum และ DTO ===
+// ** Import ฟังก์ชันแปลงข้อมูล API → UI **
+import { normalizeCaseData } from "@/shared/utils/dataNormalization";
+
 enum UserRole {
   PATIENT = "PATIENT",
   EMERGENCY_CENTER = "EMERGENCY_CENTER",
@@ -54,51 +51,44 @@ enum UserRole {
   ADMIN = "ADMIN",
 }
 
-interface RegisterDto {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  role?: UserRole;
-}
-
-interface LoginDto {
-  email: string;
-  password: string;
-}
-
-interface OAuthLoginDto {
-  provider: string;
-  redirectUrl?: string;
-}
-
-interface RefreshTokenDto {
-  refreshToken: string;
-}
-
 export const useRescueDashboard = () => {
   const [cases, setCases] = useState<EmergencyCase[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rescueTeams, setRescueTeams] = useState<ApiRescueTeam[]>([]);
 
-  // --- Load Emergency Cases ---
   useEffect(() => {
-    setLoading(true);
-    fetchActiveEmergencies()
-      .then((data) => {
-        setCases(data);
+    const loadDashboardData = async () => {
+      setLoading(true);
+      try {
+        const [apiCases, teamData] = await Promise.all([
+          fetchRescueAssignedCases().catch(() => []),
+          fetchRescueTeams().catch(() => []),
+        ]);
+
+        // แปลง apiCases (EmergencyRequestFromApi[]) เป็น EmergencyCase[]
+        const rescueCases: EmergencyCase[] = apiCases.map(normalizeCaseData);
+
+        setCases(rescueCases);
+        setRescueTeams(teamData || []);
+        setError(null);
+      } catch (err: any) {
+        setError(err.message || "ไม่สามารถโหลดข้อมูลได้");
+        toast({
+          title: "Dashboard Error",
+          description: "โหลดข้อมูลไม่สำเร็จ มีปัญหาการเชื่อมต่อเซิร์ฟเวอร์",
+          variant: "destructive",
+        });
+      } finally {
         setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message || "ไม่สามารถโหลดเคสฉุกเฉินได้");
-        setLoading(false);
-      });
+      }
+    };
+
+    loadDashboardData();
   }, []);
 
-  // --- Complete Case ---
   const handleCompleteCase = async (caseId: string) => {
     try {
       await updateEmergencyStatus(caseId, { status: "completed" });
@@ -118,7 +108,6 @@ export const useRescueDashboard = () => {
     }
   };
 
-  // --- Cancel Case ---
   const handleCancelCase = async (caseId: string) => {
     try {
       await cancelCase(caseId);
@@ -138,7 +127,6 @@ export const useRescueDashboard = () => {
     }
   };
 
-  // --- Filters ---
   const filteredCases = cases.filter(
     (c) =>
       c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -146,16 +134,15 @@ export const useRescueDashboard = () => {
       c.emergencyType.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // --- Stats ---
   const stats = {
     inProgress: cases.filter((c) => c.status === "in-progress").length,
     completed: cases.filter((c) => c.status === "completed").length,
     critical: cases.filter((c) => c.severity === 4).length,
     total: cases.length,
+    availableTeams: rescueTeams.filter((t) => t.status === "AVAILABLE").length,
   };
 
   return {
-    // --- Dashboard state ---
     cases,
     filteredCases,
     searchQuery,
@@ -166,10 +153,8 @@ export const useRescueDashboard = () => {
     loading,
     error,
     setCases,
+    rescueTeams,
 
-    // ============================
-    // ⚡ AUTH API EXPORT
-    // ============================
     fetchUserProfile,
     saveUserSettings,
     saveHospitalSettings,
@@ -180,9 +165,6 @@ export const useRescueDashboard = () => {
     verifyToken,
     supabaseLogin,
 
-    // ============================
-    // 🚑 RESCUE TEAM API EXPORT
-    // ============================
     createRescueTeam,
     fetchRescueTeams,
     fetchRescueTeamById,
@@ -190,9 +172,6 @@ export const useRescueDashboard = () => {
     updateRescueTeamStatus,
     fetchAvailableTeams,
 
-    // ============================
-    // 🔔 NOTIFICATION API EXPORT (ใหม่)
-    // ============================
     fetchNotifications,
     createNotification,
     markAsRead,

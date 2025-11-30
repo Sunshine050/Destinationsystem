@@ -4,8 +4,7 @@
 import { getAuthHeaders } from "@lib/utils";
 import { normalizeCaseData } from "../utils/dataNormalization";
 import { EmergencyCase } from "../types";
-import { Report } from "@/shared/types";
-import { updateRescueTeamStatus } from "./rescueService"; // update team status after transfer
+import { Report, EmergencyRequestFromApi } from "@/shared/types"; // เพิ่ม type EmergencyRequestFromApi
 
 // ---------------------------------------------------------------------------
 // DTO definitions (match backend expectations)
@@ -25,7 +24,8 @@ interface UpdateEmergencyStatusDto {
 // ---------------------------------------------------------------------------
 // Core service functions
 // ---------------------------------------------------------------------------
-/** Fetch active emergencies for the dashboard */
+
+/** Fetch active emergencies for the dashboard (returns normalized EmergencyCase[]) */
 export const fetchActiveEmergencies = async (): Promise<EmergencyCase[]> => {
   const headers = getAuthHeaders();
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos/dashboard/active-emergencies`, {
@@ -34,8 +34,21 @@ export const fetchActiveEmergencies = async (): Promise<EmergencyCase[]> => {
   if (!response.ok) {
     throw new Error(`Failed to fetch active emergencies: ${response.statusText}`);
   }
-  const data = await response.json();
+  const data: EmergencyRequestFromApi[] = await response.json();
   return data.map(normalizeCaseData);
+};
+
+/** Fetch assigned cases for the authenticated rescue team (returns raw API data) */
+export const fetchRescueAssignedCases = async (): Promise<EmergencyRequestFromApi[]> => {
+  const headers = getAuthHeaders();
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos/rescue/assigned-cases`, {
+    headers,
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch assigned cases: ${response.statusText}`);
+  }
+  const data: EmergencyRequestFromApi[] = await response.json();
+  return data;
 };
 
 /** Fetch list of hospitals (used by 1669 dashboard) */
@@ -125,7 +138,7 @@ export const getEmergencyRequests = async (): Promise<EmergencyCase[]> => {
   if (!response.ok) {
     throw new Error(`Failed to fetch emergencies: ${response.statusText}`);
   }
-  const data = await response.json();
+  const data: EmergencyRequestFromApi[] = await response.json();
   return data.map(normalizeCaseData);
 };
 
@@ -136,7 +149,7 @@ export const getAllEmergencyRequests = async (): Promise<EmergencyCase[]> => {
   if (!response.ok) {
     throw new Error(`Failed to fetch all emergencies: ${response.statusText}`);
   }
-  const data = await response.json();
+  const data: EmergencyRequestFromApi[] = await response.json();
   return data.map(normalizeCaseData);
 };
 
@@ -147,18 +160,13 @@ export const getEmergencyRequestById = async (id: string): Promise<EmergencyCase
   if (!response.ok) {
     throw new Error(`Failed to fetch emergency by id: ${response.statusText}`);
   }
-  const data = await response.json();
+  const data: EmergencyRequestFromApi = await response.json();
   return normalizeCaseData(data);
 };
 
-/** Transfer a case to a rescue team and set the team status to on‑mission */
-export const transferCase = async (
-  caseId: string,
-  teamId: string,
-  teamName: string
-): Promise<void> => {
+/** Transfer a case to a rescue team (Hospital only updates case status, not team status) */
+export const transferCase = async (caseId: string, teamId: string, teamName: string): Promise<void> => {
   const headers = getAuthHeaders();
-  // 1️⃣ Update case status to IN_PROGRESS with a note about the team
   const caseRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sos/${caseId}/status`, {
     method: "PUT",
     headers: { "Content-Type": "application/json", ...headers },
@@ -171,13 +179,6 @@ export const transferCase = async (
     const err = await caseRes.text();
     throw new Error(`Failed to transfer case: ${caseRes.statusText} - ${err}`);
   }
-
-  // 2️⃣ Mark the rescue team as on‑mission
-  await updateRescueTeamStatus(teamId, {
-    status: "on-mission",
-    activeMission: caseId,
-    notes: `Assigned to case ${caseId}`,
-  });
 };
 
 /** Cancel a case (hospital view) */

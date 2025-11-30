@@ -8,6 +8,7 @@ interface RescueTrendChartsProps {
     completed: number;
     critical: number;
     total: number;
+    availableTeams: number;
   };
 }
 
@@ -65,12 +66,12 @@ export default function RescueTrendCharts({ stats }: RescueTrendChartsProps) {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
-            Team Members
+            Available Teams
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
-            <div className="text-2xl font-bold">5</div>
+            <div className="text-2xl font-bold">{stats.availableTeams}</div>
             <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-full">
               <Users className="h-5 w-5 text-purple-600 dark:text-purple-500" />
             </div>

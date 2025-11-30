@@ -42,7 +42,7 @@ const MapView = dynamic(() => import('@components/dashboard/map-view'), {
 });
 
 export default function RescueCases() {
-  const { cases, handleCompleteCase, handleCancelCase } = useRescueCases();
+  const { cases, loading, error, handleCompleteCase, handleCancelCase } = useRescueCases();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -225,7 +225,18 @@ export default function RescueCases() {
         {/* List or Map View */}
         {viewMode === 'list' ? (
           <div className="space-y-4">
-            {filteredCases.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
+                <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                <p className="text-slate-500 dark:text-slate-400">Loading cases...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
+                <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-red-500" />
+                <p className="text-red-500 font-medium">Error loading cases</p>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{error}</p>
+              </div>
+            ) : filteredCases.length === 0 ? (
               <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
                 <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-slate-400" />
                 <p className="text-slate-500 dark:text-slate-400">No cases found matching your criteria</p>

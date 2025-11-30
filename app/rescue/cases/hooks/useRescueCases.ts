@@ -1,10 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/shared/hooks/use-toast';
+import { 
+  fetchRescueAssignedCases, 
+  updateEmergencyStatus, 
+  cancelCase 
+} from '@/shared/services/emergencyService';
 
+import { EmergencyRequestFromApi } from '@/shared/types';
+
+// -------------------------------
+// Local Type (for frontend UI)
+// -------------------------------
 export type EmergencyCase = {
   id: string;
   title: string;
-  status: 'in-progress' | 'completed' | 'cancelled';
+  status: 'pending' | 'assigned' | 'in-progress' | 'completed' | 'cancelled';
   severity: 1 | 2 | 3 | 4;
   reportedAt: string;
   patientName: string;
@@ -19,90 +29,142 @@ export type EmergencyCase = {
   symptoms: string[];
 };
 
-const initialCases: EmergencyCase[] = [
-  {
-    id: 'ER-2305-003',
-    title: 'Drowning at Blue Beach Resort',
-    status: 'in-progress',
-    severity: 4,
-    reportedAt: '2025-03-15T11:17:22',
-    patientName: 'Michael Johnson',
-    contactNumber: '062-345-6789',
-    emergencyType: 'Drowning',
+// -------------------------------
+// Convert API → UI format
+// -------------------------------
+const convertApiCase = (apiCase: EmergencyRequestFromApi): EmergencyCase => {
+  return {
+    id: apiCase.id,
+    title: `${apiCase.emergencyType || "Emergency"} - ${apiCase.patient?.firstName || ""}`,
+    status: apiCase.status as EmergencyCase["status"],
+    severity: Number(apiCase.medicalInfo?.grade || 4) as 1 | 2 | 3 | 4,
+    reportedAt: apiCase.createdAt,
+    patientName: `${apiCase.patient?.firstName || ""} ${apiCase.patient?.lastName || ""}`.trim(),
+    contactNumber: apiCase.patient?.phone || "-",
+    emergencyType: apiCase.emergencyType || "Unknown",
     location: {
-      address: 'Blue Beach Resort, Koh Samui',
-      coordinates: { lat: 9.5678, lng: 100.0123 },
+      address: apiCase.location || "Unknown",
+      coordinates: {
+        lat: apiCase.latitude || 0,
+        lng: apiCase.longitude || 0,
+      },
     },
-    assignedTo: 'Rescue Team Alpha',
-    description: 'Tourist found unconscious in hotel swimming pool. CPR in progress by hotel staff.',
-    symptoms: ['Unconsciousness', 'Not Breathing', 'Cyanosis'],
-  },
-  {
-    id: 'ER-2305-006',
-    title: 'Road Accident on Sukhumvit 24',
-    status: 'in-progress',
-    severity: 3,
-    reportedAt: '2025-03-15T14:45:30',
-    patientName: 'Sarah Thompson',
-    contactNumber: '095-789-1234',
-    emergencyType: 'Traffic Accident',
-    location: {
-      address: 'Sukhumvit 24, near BTS Phrom Phong',
-      coordinates: { lat: 13.7234, lng: 100.5678 },
-    },
-    assignedTo: 'Rescue Team Bravo',
-    description: 'Motorcycle collision with car. Patient conscious but with leg injury and bleeding.',
-    symptoms: ['Leg Pain', 'Bleeding', 'Abrasions'],
-  },
-  {
-    id: 'ER-2305-007',
-    title: 'Heart Attack at Fitness Center',
-    status: 'completed',
-    severity: 4,
-    reportedAt: '2025-03-15T10:15:00',
-    patientName: 'Thanapat Srichai',
-    contactNumber: '081-456-7890',
-    emergencyType: 'Heart Attack',
-    location: {
-      address: 'FitForLife Gym, Sathorn Square Building',
-      coordinates: { lat: 13.7234, lng: 100.5288 },
-    },
-    assignedTo: 'Rescue Team Charlie',
-    description: 'Middle-aged male collapsed during workout with chest pain and shortness of breath.',
-    symptoms: ['Chest Pain', 'Shortness of Breath', 'Sweating'],
-  },
-];
+    assignedTo: apiCase.responses?.[0]?.organization?.name || "Unassigned",
+    description: apiCase.description || "",
+    symptoms: Array.isArray(apiCase.medicalInfo?.symptoms)
+      ? apiCase.medicalInfo.symptoms
+      : apiCase.medicalInfo?.symptoms
+      ? [apiCase.medicalInfo.symptoms]
+      : [],
+  };
+};
 
+// -------------------------------
+// Hook
+// -------------------------------
 export const useRescueCases = () => {
-  const [cases, setCases] = useState<EmergencyCase[]>(initialCases);
+  const [cases, setCases] = useState<EmergencyCase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const handleCompleteCase = (caseId: string) => {
-    setCases(prev =>
-      prev.map(c =>
-        c.id === caseId ? { ...c, status: 'completed' as const } : c
-      )
-    );
-    toast({
-      title: "Mission completed",
-      description: `Case ${caseId} has been marked as completed.`,
-    });
+  // Load from API (REAL)
+  useEffect(() => {
+    const loadCases = async () => {
+      try {
+        setLoading(true);
+
+        const apiCases: EmergencyRequestFromApi[] = await fetchRescueAssignedCases();
+        const rescueCases = apiCases.map(convertApiCase);
+
+        setCases(rescueCases);
+        setError(null);
+
+      } catch (err: any) {
+        console.error("Failed to load rescue cases:", err);
+
+        const message =
+          err?.response?.data?.message ||
+          err.message ||
+          "Failed to load assigned cases";
+
+        if (message.includes("organizationId")) {
+          setError("User ยังไม่ได้ถูกผูกกับทีมกู้ภัย");
+        } else {
+          setError(message);
+        }
+
+        toast({
+          title: "โหลดข้อมูลล้มเหลว",
+          description: "ไม่สามารถดึงข้อมูลเคสได้ กรุณาติดต่อ Admin",
+          variant: "destructive",
+        });
+
+        setCases([]); 
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCases();
+  }, []);
+
+  // ---------------------------
+  // COMPLETE CASE
+  // ---------------------------
+  const handleCompleteCase = async (caseId: string) => {
+    try {
+      await updateEmergencyStatus(caseId, { status: "COMPLETED" });
+
+      setCases(prev =>
+        prev.map(c =>
+          c.id === caseId ? { ...c, status: "completed" } : c
+        )
+      );
+
+      toast({
+        title: "Mission Completed",
+        description: `Case ${caseId} marked as completed`,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to complete mission",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleCancelCase = (caseId: string) => {
-    setCases(prev =>
-      prev.map(c =>
-        c.id === caseId ? { ...c, status: 'cancelled' as const } : c
-      )
-    );
-    toast({
-      title: "Mission cancelled",
-      description: `Case ${caseId} has been cancelled.`,
-    });
+  // ---------------------------
+  // CANCEL CASE
+  // ---------------------------
+  const handleCancelCase = async (caseId: string) => {
+    try {
+      await cancelCase(caseId);
+
+      setCases(prev =>
+        prev.map(c =>
+          c.id === caseId ? { ...c, status: "cancelled" } : c
+        )
+      );
+
+      toast({
+        title: "Mission Cancelled",
+        description: `Case ${caseId} has been cancelled.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to cancel mission",
+        variant: "destructive",
+      });
+    }
   };
 
   return {
     cases,
+    loading,
+    error,
     handleCompleteCase,
     handleCancelCase,
   };

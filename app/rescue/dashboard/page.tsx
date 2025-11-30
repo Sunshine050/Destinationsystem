@@ -1,11 +1,11 @@
 "use client";
 
+import dynamic from "next/dynamic";
+
 import DashboardLayout from "@components/dashboard/dashboard-layout";
-import { Button } from "@components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/ui/tabs";
-import { Input } from "@components/ui/input";
 import { Badge } from "@components/ui/badge";
-import { Search, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -15,20 +15,26 @@ import {
 } from "@components/ui/card";
 
 import RescueTrendCharts from "./components/RescueTrendCharts";
+// import RescueMap from "./components/RescueMap";  // ลบการ import แบบปกติ
+
 import CaseCard from "@components/dashboard/case-card";
 import { useRescueDashboard } from "./hooks/useRescueDashboard";
 import { useNotifications } from "../../useNotifications";
 import { fetchHospitals } from "@/shared/services/hospitalService";
 
+const RescueMap = dynamic(
+  () => import("./components/RescueMap").then((mod) => mod.RescueMap),
+  { ssr: false }
+);
+
 export default function RescueTeamDashboard() {
   const {
     filteredCases,
-    searchQuery,
-    setSearchQuery,
     handleCompleteCase,
     handleCancelCase,
     stats,
     setCases,
+    rescueTeams,
   } = useRescueDashboard();
 
   const { notifications, unreadCount, markAsRead, markAllAsRead } =
@@ -51,74 +57,122 @@ export default function RescueTeamDashboard() {
               Manage and track rescue missions
             </p>
           </div>
-          <Button>Update Team Status</Button>
         </div>
 
         {/* Stats */}
         <RescueTrendCharts stats={stats} />
 
         {/* Team Status */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Team Status & Location</CardTitle>
-            <CardDescription>Current team position and status</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center mb-4">
-              <div className="text-center">
-                <MapPin className="h-8 w-8 mx-auto mb-2 text-slate-400" />
-                <p className="text-slate-500 dark:text-slate-400">
-                  Map view will be displayed here
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 bg-green-50 dark:bg-green-900/10 p-4 rounded-lg">
-                <h3 className="font-semibold mb-2">Current Status</h3>
-                <p className="text-green-600 dark:text-green-500 font-medium">
-                  Available for Missions
-                </p>
-                <p className="text-sm text-slate-500 mt-1">
-                  Updated 5 minutes ago
-                </p>
-              </div>
-              <div className="flex-1 bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg">
-                <h3 className="font-semibold mb-2">Current Location</h3>
-                <p className="text-blue-600 dark:text-blue-500 font-medium">
-                  Sukhumvit 24, Bangkok
-                </p>
-                <p className="text-sm text-slate-500 mt-1">
-                  3 km from hospital
-                </p>
-              </div>
-              <div className="flex-1 bg-purple-50 dark:bg-purple-900/10 p-4 rounded-lg">
-                <h3 className="font-semibold mb-2">Team Members</h3>
-                <p className="text-purple-600 dark:text-purple-500 font-medium">
-                  All members on duty
-                </p>
-                <p className="text-sm text-slate-500 mt-1">
-                  5/5 team members available
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <Card className="h-full flex flex-col">
+              <CardHeader>
+                <CardTitle>Real-Time Operations Map</CardTitle>
+                <CardDescription>
+                  Live tracking of rescue teams and active emergencies
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1 min-h-[400px] p-0 relative overflow-hidden rounded-b-xl">
+                <RescueMap
+                  cases={filteredCases}
+                  rescueTeams={rescueTeams}
+                  className="h-full w-full absolute inset-0"
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="lg:col-span-1 h-full">
+            {/* Active Teams List */}
+            <Card className="h-full flex flex-col">
+              <CardHeader>
+                <CardTitle>Active Teams</CardTitle>
+                <CardDescription>Teams currently on mission</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-y-auto pr-2">
+                <div className="space-y-4">
+                  {rescueTeams.filter((t) => t.status !== "AVAILABLE").length ===
+                  0 ? (
+                    <p className="text-sm text-slate-500 text-center py-4">
+                      ไม่มีทีมที่กำลังทำงาน
+                    </p>
+                  ) : (
+                    rescueTeams
+                      .filter((t) => t.status !== "AVAILABLE")
+                      .map((team) => {
+                        const activeCase = filteredCases.find(
+                          (c) =>
+                            c.assignedTo === team.id ||
+                            team.medicalInfo?.currentEmergencyId === c.id
+                        );
+                        const isWorking =
+                          team.status === "BUSY" || team.status === "ACTIVE";
+
+                        return (
+                          <div
+                            key={team.id}
+                            className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800"
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <h4 className="font-semibold text-sm">{team.name}</h4>
+                              <Badge
+                                variant={isWorking ? "secondary" : "outline"}
+                                className={`text-[10px] ${
+                                  isWorking ? "bg-slate-400 text-white" : ""
+                                }`}
+                              >
+                                {isWorking ? "กำลังทำงาน" : team.status}
+                              </Badge>
+                            </div>
+
+                            {activeCase ? (
+                              <div className="space-y-1">
+                                <p className="text-xs text-slate-500">
+                                  กำลังจัดการ:{" "}
+                                  <span className="font-medium text-slate-700 dark:text-slate-300">
+                                    {activeCase.emergencyType}
+                                  </span>
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  ผู้ป่วย: {activeCase.patientName}
+                                </p>
+                                <div className="mt-2 flex items-center gap-2">
+                                  <div className="h-1.5 flex-1 bg-slate-200 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-blue-500 rounded-full"
+                                      style={{
+                                        width:
+                                          activeCase.status === "in-progress"
+                                            ? "60%"
+                                            : "100%",
+                                      }}
+                                    />
+                                  </div>
+                                  <span className="text-[10px] font-medium text-blue-600">
+                                    {activeCase.status === "in-progress"
+                                      ? "กำลังเดินทาง"
+                                      : activeCase.status}
+                                  </span>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-slate-400 italic">
+                                ไม่มีเคสที่เชื่อมโยง
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
         {/* Missions List */}
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between gap-4">
-            <h2 className="text-xl font-bold">Rescue Missions</h2>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
-              <Input
-                type="search"
-                placeholder="Search missions..."
-                className="pl-8"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </div>
+          <h2 className="text-xl font-bold">Rescue Missions</h2>
 
           <Tabs defaultValue="all">
             <TabsList>
@@ -162,7 +216,7 @@ export default function RescueTeamDashboard() {
                           assignedTo={c.assignedTo}
                           symptoms={c.symptoms}
                           role="rescue"
-                          setCases={setCases} // <-- ตอนนี้ error หายแล้ว
+                          setCases={setCases}
                           fetchHospitals={fetchHospitals}
                         />
                       ))}
